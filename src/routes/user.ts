@@ -7,7 +7,7 @@ import { registerUserSchema } from '../validators/userValidator';
 
 const router = Router();
 
-router.post('/register' , authenticate, validateSchema(registerUserSchema), registerUser);
+router.post('/register',authenticate, validateSchema(registerUserSchema), registerUser);
 
 
 export default router;
