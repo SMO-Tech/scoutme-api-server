@@ -20,7 +20,8 @@ export const authenticate = async (
     const decodedToken = await firebaseAdmin.auth().verifyIdToken(idToken);
 
     // Attach the decoded user info to the request object
-    (req as any).user = decodedToken;
+    req.user = decodedToken;
+
 
     next();
   } catch (error) {

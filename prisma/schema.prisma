@@ -8,12 +8,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// SMO : User
 model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
   phone     String?
   photoUrl  String?
-  firebaseUID  String @unique
+  UID       String   @unique
   createdAt DateTime @default(now())
+
+  // relationshions
+  matchRequest MatchRequest[]
+}
+
+enum MatchStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// Match : 
+model MatchRequest {
+  id             Int         @id @default(autoincrement())
+  userId         String
+  videoUrl       String
+  lineUpImage    String?
+  status         MatchStatus @default(PENDING) //updated video uploaded it will we on pending mode 
+  analysisResutl Json? //mathc analysis result
+  cratedAt       DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  // relation
+  user           User        @relation(fields: [userId], references: [UID])
+  players        Player[]
+}
+
+// Player 
+model Player {
+  id             Int          @id @default(autoincrement())
+  matchRequestId Int
+  name           String
+  jerseyNumber   Int
+  position       String
+  team           String? // optional 'home' or 'away'
+  createdAt      DateTime     @default(now())
+  //Relation
+  matchRequest   MatchRequest @relation(fields: [matchRequestId], references: [id])
 }
