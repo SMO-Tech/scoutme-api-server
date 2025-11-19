@@ -30,17 +30,28 @@ enum MatchStatus {
 
 // Match : 
 model MatchRequest {
-  id             Int         @id @default(autoincrement())
-  userId         String
-  videoUrl       String
-  lineUpImage    String?
-  status         MatchStatus @default(PENDING) //updated video uploaded it will we on pending mode 
-  analysisResutl Json? //mathc analysis result
-  cratedAt       DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id          Int         @id @default(autoincrement())
+  userId      String
+  videoUrl    String
+  lineUpImage String?
+  status      MatchStatus @default(PENDING) //updated video uploaded it will we on pending mode 
+  cratedAt    DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   // relation
-  user           User        @relation(fields: [userId], references: [UID])
-  players        Player[]
+  user        User        @relation(fields: [userId], references: [UID])
+  players     Player[]
+
+  // relation to analysis
+  analysis MatchAnalysis? @relation(name: "MatchAnalysisToMatchRequest")
+}
+
+//matchAnalysis
+model MatchAnalysis {
+  id      Int          @id @default(autoincrement())
+  matchId Int          @unique // ensures one-to-one relation
+  result  Json // store the analysis result here
+  //one to one relationship with mathrequest
+  match   MatchRequest @relation(name: "MatchAnalysisToMatchRequest", fields: [matchId], references: [id])
 }
 
 // Player 
