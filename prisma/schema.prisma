@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  UID          String         @unique //fireabse UId is the only userId
+  UID          String         @id  //fireabse UId is the only userId
   name         String
   email        String         @unique
   phone        String?
@@ -18,12 +18,12 @@ model User {
 }
 
 model MatchRequest {
-  id          String            @id @default(uuid())
+  id          String         @id @default(uuid())
   userId      String
   videoUrl    String
   lineUpImage String?
   status      MatchStatus    @default(PENDING)
-  cratedAt    DateTime       @default(now())
+  createdAt    DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   analysis    MatchAnalysis? @relation("MatchAnalysisToMatchRequest")
   user        User           @relation(fields: [userId], references: [UID])
@@ -31,14 +31,14 @@ model MatchRequest {
 }
 
 model MatchAnalysis {
-  id      String          @id @default(uuid())
-  matchId String          @unique
+  id      String       @id @default(uuid())
+  matchId String       @unique
   result  Json
   match   MatchRequest @relation("MatchAnalysisToMatchRequest", fields: [matchId], references: [id])
 }
 
 model Player {
-  id             String          @id @default(uuid())
+  id             String       @id @default(uuid())
   matchRequestId String
   name           String
   jerseyNumber   Int

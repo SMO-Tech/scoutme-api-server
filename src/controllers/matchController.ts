@@ -9,9 +9,11 @@ export const requestMatchAnalysis: RequestHandler = async (
   try {
     //find user from auht middleware
     const { uid } = req.user;
+    console.log('user id ',uid)
 
     // check if user exist
     const user = await prisma.user.findUnique({ where: { UID: uid } });
+    console.log('user Status',user)
     if (!user) return res.status(400).json({ error: "user not found!" });
 
     const { videoUrl, players, lineUpImage } =
@@ -58,13 +60,13 @@ export const allmatchRequestsOfUser: RequestHandler = async (
       },
       //order by newest request
       orderBy: {
-        cratedAt: "desc",
+        createdAt: "desc",
       },
       //select the field to fetch
       select: {
         status: true,
         id: true,
-        cratedAt: true,
+        createdAt: true,
       },
     });
 
@@ -99,11 +101,35 @@ export const getSpecificMatchAnalysis: RequestHandler = async (
     const isValidId = await prisma.matchRequest.findUnique({
       where: { id: matchId },
     });
+    //if no id mathces return error
+    if (!isValidId)
+      return res.status(400).json({ error: "The match is not found" });
 
-    // return res.status(201).json({
-    //   message: "Match requestes fetched successfully",
-    //   data: allMatchRequests,
-    // });
+    const matchInfo = await prisma.matchRequest.findUnique({
+      where: { id: matchId },
+      select: {
+        id: true,
+        videoUrl: true,
+        status: true,
+        players: {
+          select: {
+            name: true,
+            jerseyNumber: true,
+            position: true,
+          },
+        },
+        analysis: {
+          select: {
+            result: true,
+          },
+        },
+      },
+    });
+
+    return res.status(201).json({
+      message: "Match information is successfully fetched!",
+      data: matchInfo,
+    });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Something went wrong" });
   }
