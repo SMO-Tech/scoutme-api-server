@@ -135,7 +135,6 @@ export const getSpecificMatchAnalysis: RequestHandler = async (
   }
 };
 
-
 export const updateMatchStatus: RequestHandler = async (req, res) => {
   try {
     const { uid } = req.user as { uid: string };
@@ -146,9 +145,11 @@ export const updateMatchStatus: RequestHandler = async (req, res) => {
     const { matchId } = req.params;
     if (!matchId) return res.status(400).json({ error: "matchId not found!" });
 
-    const match = await prisma.matchRequest.findUnique({ where: { id: matchId } });
+    const match = await prisma.matchRequest.findUnique({
+      where: { id: matchId },
+    });
     if (!match) return res.status(404).json({ error: "Match not found!" });
-    console.log(req.body)
+    console.log(req.body);
 
     const { status } = req.body as MatchStatusBody;
     if (!["PENDING", "PROCESSING", "COMPLETED"].includes(status))
@@ -159,9 +160,10 @@ export const updateMatchStatus: RequestHandler = async (req, res) => {
       data: { status },
     });
 
-    return res.status(200).json({ message: `Match status updated to ${status}` });
+    return res
+      .status(200)
+      .json({ message: `Match status updated to ${status}` });
   } catch (e: any) {
     return res.status(500).json({ error: e.message || "Something went wrong" });
   }
 };
-
