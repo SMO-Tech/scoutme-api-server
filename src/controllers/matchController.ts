@@ -167,3 +167,57 @@ export const updateMatchStatus: RequestHandler = async (req, res) => {
     return res.status(500).json({ error: e.message || "Something went wrong" });
   }
 };
+
+export const submitMatchAnalysis: RequestHandler = async (req, res) => {
+  try {
+    const { matchId } = req.params;
+    
+    // VALIDATE INPUTS RUTHLESSLY
+    if (!matchId?.trim()) {
+      return res.status(400).json({ error: "matchId is required and cannot be empty" });
+    }
+
+  
+    // pull all data from json req body and save in match request id 
+    const { result } = req.body;
+    if (!result || !Array.isArray(result) || result.length === 0) {
+      return res.status(400).json({ 
+        error: "result must be a non-empty array with proper structure" 
+      });
+    }
+
+    // 3. CHECK IF MATCH EXISTS FIRST
+    const existingMatch = await prisma.matchRequest.findUnique({
+      where: { id: matchId }
+    });
+
+    if (!existingMatch) {
+      return res.status(404).json({ error: "MatchRequest not found" });
+    }
+
+    const analysis = await prisma.matchAnalysis.upsert({
+      where: { 
+        matchId: matchId  // This determines if record exists
+      },
+      update: { 
+        result: result,    // If exists, update
+        // updatedAt: new Date()
+      },
+      create: { 
+        matchId: matchId,  // If doesn't exist, create
+        result: result
+      }
+    });
+    
+    
+    // 6. SUCCESS RESPONSE
+    return res.status(201).json({
+      message: "Match analysis submitted successfully",
+      id: analysis.id,
+      matchId: analysis.matchId
+    });
+
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message || "Something went wrong" });
+  }
+};
