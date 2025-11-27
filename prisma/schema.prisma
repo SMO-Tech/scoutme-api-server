@@ -37,8 +37,6 @@ model Match {
   userId       String
   videoUrl     String
   lineUpImage  String?
-  // homeClubName     String
-  // opponentClubName String
   status       MatchStatus   @default(PENDING)
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
