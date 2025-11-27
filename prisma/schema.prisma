@@ -7,49 +7,160 @@ datasource db {
   provider = "postgresql"
 }
 
+// User
 model User {
-  UID          String         @id  //fireabse UId is the only userId
+  UID          String          @id //fireabse UId is the only userId
   name         String
-  email        String         @unique
+  email        String          @unique
   phone        String?
   photoUrl     String?
-  createdAt    DateTime       @default(now())
-  matchRequest MatchRequest[]
+  createdAt    DateTime        @default(now())
+  //relationships 
+  match        Match[]
+  ownedPlayers PlayerProfile[]
+  ownedClubs   Club[]
+  claims       ClaimRequest[]
 }
 
-model MatchRequest {
-  id          String         @id @default(uuid())
-  userId      String
-  videoUrl    String
-  lineUpImage String?
-  status      MatchStatus    @default(PENDING)
-  createdAt    DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  analysis    MatchAnalysis? @relation("MatchAnalysisToMatchRequest")
-  user        User           @relation(fields: [userId], references: [UID])
-  players     Player[]
+enum MatchLevel {
+  Professional
+  semiProfessional
+  academicTopTier
+  academicAmature
+  sundayLeague
 }
 
-model MatchAnalysis {
-  id      String       @id @default(uuid())
-  matchId String       @unique
-  result  Json
-  match   MatchRequest @relation("MatchAnalysisToMatchRequest", fields: [matchId], references: [id])
+model Match {
+  id               String        @id @default(uuid())
+  userId           String
+  videoUrl         String
+  lineUpImage      String?
+  // homeClubName     String
+  // opponentClubName String
+  status           MatchStatus   @default(PENDING)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  result           MatchResult?  @relation("MatchAnalysisToMatchRequest")
+  //relationsips
+  user             User          @relation(fields: [userId], references: [UID])
+  matchPlayers     MatchPlayer[]
+  // matchClubs   MatchClub[]
+  matchClubs       MatchClub[]
 }
 
-model Player {
-  id             String       @id @default(uuid())
-  matchRequestId String
-  name           String
-  jerseyNumber   Int
-  position       String
-  team           String?
-  createdAt      DateTime     @default(now())
-  matchRequest   MatchRequest @relation(fields: [matchRequestId], references: [id])
+model MatchResult {
+  id        String @id @default(uuid())
+  matchId   String @unique
+  result    Json
+  match     Match  @relation("MatchAnalysisToMatchRequest", fields: [matchId], references: [id])
+  //later change this based on AI output 
+  homeScore Int?
+  awayScore Int?
+}
+
+//matchPlayer - generated for match not owned profiles
+model MatchPlayer {
+  id              String         @id @default(uuid())
+  playerProfileId String?
+  matchId         String
+  firstName       String
+  surName         String
+  jerseyNumber    Int
+  country         String
+  level           MatchLevel
+  DOB             DateTime       @db.Date
+  age             Int
+  position        String
+  team            String?
+  createdAt       DateTime       @default(now())
+  // relation
+  match           Match          @relation(fields: [matchId], references: [id])
+  playerProfile   PlayerProfile? @relation(fields: [playerProfileId], references: [id])
+}
+
+model MatchClub {
+  id          String   @id @default(uuid())
+  matchId     String
+  clubId      String?
+  name        String
+  country     String
+  isHomeClub  Boolean
+  jerseyColor String?
+  createdAt   DateTime @default(now())
+  match       Match    @relation(fields: [matchId], references: [id])
+  club        Club?    @relation(fields: [clubId], references: [id])
+}
+
+//
+// PLAYER PROFILE (canonical identity)
+//
+model PlayerProfile {
+  id          String      @id @default(uuid())
+  name        String
+  dateOfBirth DateTime?
+  country     String
+  level       MatchLevel
+  age         Int
+  club        String
+  status      ClaimStatus @default(UNCLAIMED)
+  ownerUserId String?
+  createdAt   DateTime    @default(now())
+
+  // relations
+  owner        User?         @relation(fields: [ownerUserId], references: [UID])
+  matchPlayers MatchPlayer[]
+  claimRequests ClaimRequest[]
+}
+
+//
+// CLUB (canonical identity)
+//
+model Club {
+  id          String      @id @default(uuid())
+  name        String
+  logoUrl     String?
+  status      ClaimStatus @default(UNCLAIMED)
+  ownerUserId String?
+  createdAt   DateTime    @default(now())
+
+  // relations
+  owner      User?       @relation(fields: [ownerUserId], references: [UID])
+  matchClubs MatchClub[]
+
+  claimRequests ClaimRequest[]
 }
 
 enum MatchStatus {
   PENDING
   PROCESSING
   COMPLETED
+}
+
+//
+// CLAIM REQUEST
+//
+model ClaimRequest {
+  id        String      @id @default(uuid())
+  userId    String
+  playerId  String?
+  clubId    String?
+  type      ClaimType
+  status    ClaimStatus @default(PENDING)
+  notes     String?
+  createdAt DateTime    @default(now())
+
+  user   User           @relation(fields: [userId], references: [UID])
+  player PlayerProfile? @relation(fields: [playerId], references: [id])
+  club   Club?          @relation(fields: [clubId], references: [id])
+}
+
+enum ClaimStatus {
+  UNCLAIMED
+  PENDING
+  VERIFIED
+}
+
+enum ClaimType {
+  PLAYER
+  CLUB
 }
