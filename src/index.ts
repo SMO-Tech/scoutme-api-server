@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import userRouter from "./routes/user";
 import matchRouter from "./routes/match";
 import clubRouter from "./routes/club_routes";
+import playerRouter from "./routes/player_routes";
+
 import cors from "cors";
 import swagger from './swagger'
 dotenv.config();
@@ -23,6 +25,8 @@ app.get("/", (req, res) => {
 app.use("/user", userRouter);
 app.use("/match", matchRouter);
 app.use("/club", clubRouter);
+app.use("/player", playerRouter);
+
 
 //swagger route 
 app.use("/api-docs", swagger.swaggerUi.serve, swagger.swaggerUi.setup(swagger.specs))
