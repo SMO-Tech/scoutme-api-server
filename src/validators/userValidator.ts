@@ -5,5 +5,5 @@ export const registerUserSchema = z.object({
   email: z.string().email("Invalid email"),
   phone: z.string().optional().nullable(),
   photoUrl: z.string().optional().nullable(),
-  id: z.string().min(1, "FirebaseUID is required!"),
+  UID: z.string().min(1, "FirebaseUID is required!"),
 });
