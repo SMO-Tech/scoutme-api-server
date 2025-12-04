@@ -1,7 +1,8 @@
 import {Request, RequestHandler, Response} from "express";
 import {prisma} from "../utils/db";
 import { formatDate, parseDate } from "../utils/helper_functions";
-import { PlayerProfile } from "../generated/prisma/browser";
+import { PlayerProfile } from "../generated/prisma";
+
 
 
 
