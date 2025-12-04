@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../middleware/authenticate";
 import { validateSchema } from "../middleware/validate";
 import { createMatchSchema } from "../validators/matchValidators";
-import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis } from "../controllers/matchController";
+import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis, updateMatchStatus } from "../controllers/matchController";
 
 
 const router = Router();
@@ -94,6 +94,6 @@ router.post(
 router.get("/", authenticate, allmatchOfUser); //get all match of user
 router.get("/all-match", authenticate, allMatch); //get all match 
 router.get("/:matchId", authenticate, getMatchAnalysis); // get match analysis by id
-// router.post("/:matchId", authenticate, updateMatchStatus);
+router.post("/:matchId", authenticate, updateMatchStatus);
 
 export default router;

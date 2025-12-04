@@ -1,6 +1,7 @@
 import { Request, RequestHandler, Response } from "express";
 import { RequestMatchAnalysisBody } from "../@types";
 import { prisma } from "../utils/db";
+import { MatchStatus } from "@prisma/client";
 
 export const createMatchRequest: RequestHandler = async (
   req: Request,
@@ -356,34 +357,38 @@ export const getMatchAnalysis: RequestHandler = async (
   }
 };
 
-// export const updateMatchStatus: RequestHandler = async (req, res) => {
-//   try {
-//     const { uid } = req.user as { uid: string };
+export const updateMatchStatus: RequestHandler = async (req, res) => {
+  try {
+    const { uid } = req.user as { uid: string };
 
-//     const user = await prisma.user.findUnique({ where: { UID: uid } });
-//     if (!user) return res.status(404).json({ error: "User not found!" });
+    const user = await prisma.user.findUnique({ where: { id: uid } });
+    if (!user) return res.status(404).json({ error: "User not found!" });
 
-//     const { matchId } = req.params;
-//     if (!matchId) return res.status(400).json({ error: "matchId not found!" });
+    const { matchId } = req.params;
+    if (!matchId) return res.status(400).json({ error: "matchId not found!" });
 
-//     const match = await prisma.match.findUnique({
-//       where: { id: matchId },
-//     });
-//     if (!match) return res.status(404).json({ error: "Match not found!" });
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+    });
+    if (!match) return res.status(404).json({ error: "Match not found!" });
 
-//     const { status } = req.body as MatchStatusBody;
-//     if (!["PENDING", "PROCESSING", "COMPLETED"].includes(status))
-//       return res.status(400).json({ error: "Invalid or missing status" });
+    interface MatchStatusBody {
+      status: MatchStatus;
+    }
 
-//     await prisma.matchRequest.update({
-//       where: { id: matchId },
-//       data: { status },
-//     });
+    const { status } = req.body as MatchStatusBody;
+    if (!["PENDING", "PROCESSING", "COMPLETED"].includes(status))
+      return res.status(400).json({ error: "Invalid or missing status" });
 
-//     return res
-//       .status(200)
-//       .json({ message: `Match status updated to ${status}` });
-//   } catch (e: any) {
-//     return res.status(500).json({ error: e.message || "Something went wrong" });
-//   }
-// };
+    await prisma.match.update({
+      where: { id: matchId },
+      data: { status: status },
+    });
+
+    return res
+      .status(200)
+      .json({ message: `Match status updated to ${status}` });
+  } catch (e: any) {
+    return res.status(500).json({ error: e.message || "Something went wrong" });
+  }
+};
