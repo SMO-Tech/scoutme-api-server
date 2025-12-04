@@ -26,6 +26,5 @@ if (!firebase_admin_1.default.apps.length) {
     firebase_admin_1.default.initializeApp({
         credential: firebase_admin_1.default.credential.cert(serviceAccount),
     });
-    console.log(" Firebase Admin initialized successfully");
 }
 exports.default = firebase_admin_1.default;

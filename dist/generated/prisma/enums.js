@@ -9,9 +9,26 @@
 * 🟢 You can import this file directly.
 */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.MatchStatus = void 0;
+exports.ClaimType = exports.ClaimStatus = exports.MatchLevel = exports.MatchStatus = void 0;
 exports.MatchStatus = {
     PENDING: 'PENDING',
     PROCESSING: 'PROCESSING',
-    COMPLETED: 'COMPLETED'
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED'
+};
+exports.MatchLevel = {
+    PROFESSIONAL: 'PROFESSIONAL',
+    SEMI_PROFESSIONAL: 'SEMI_PROFESSIONAL',
+    ACADEMIC_TOP_TIER: 'ACADEMIC_TOP_TIER',
+    ACADEMIC_AMATEUR: 'ACADEMIC_AMATEUR',
+    SUNDAY_LEAGUE: 'SUNDAY_LEAGUE'
+};
+exports.ClaimStatus = {
+    UNCLAIMED: 'UNCLAIMED',
+    PENDING: 'PENDING',
+    VERIFIED: 'VERIFIED'
+};
+exports.ClaimType = {
+    PLAYER: 'PLAYER',
+    CLUB: 'CLUB'
 };

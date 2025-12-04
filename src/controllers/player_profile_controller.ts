@@ -1,14 +1,15 @@
 import {Request, RequestHandler, Response} from "express";
-import {RequestMatchAnalysisBody} from "../@types";
 import {prisma} from "../utils/db";
 import { formatDate, parseDate } from "../utils/helper_functions";
+import { PlayerProfile } from "../generated/prisma/browser";
+
 
 
 // List all player profiles
 export const listPlayerProfiles = async (req : Request, res : Response) => {
     try {
         const playerProfiles = await prisma.playerProfile.findMany();
-        const formattedProfiles = playerProfiles.map((profile) => ({
+        const formattedProfiles = playerProfiles.map((profile : PlayerProfile) => ({
             ...profile,
             dateOfBirth: profile.dateOfBirth ? formatDate(new Date(profile.dateOfBirth)) : null
         }));
@@ -73,7 +74,7 @@ export const searchPlayerProfiles = async (req : Request, res : Response) => {
         }
         
         const playerProfiles = await prisma.playerProfile.findMany({where});
-        const formattedProfiles = playerProfiles.map((profile) => ({
+        const formattedProfiles = playerProfiles.map((profile :PlayerProfile) => ({
             ...profile,
             dateOfBirth: profile.dateOfBirth ? formatDate(new Date(profile.dateOfBirth)) : null
         }));

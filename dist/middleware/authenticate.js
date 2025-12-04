@@ -19,7 +19,6 @@ const authenticate = async (req, res, next) => {
         next();
     }
     catch (error) {
-        console.error("Token verification failed:", error);
         res.status(401).json({ error: "Invalid or expired token" });
     }
 };
