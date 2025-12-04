@@ -200,9 +200,9 @@ export const allMatch: RequestHandler = async (req: Request, res: Response) => {
       orderBy: {
         createdAt: "desc",
       },
-      where: {
-        status: "COMPLETED",
-      },
+      // where: {
+      //   status: "COMPLETED",
+      // },
     });
 
     return res.status(200).json({
