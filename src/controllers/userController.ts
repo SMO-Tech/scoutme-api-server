@@ -10,7 +10,7 @@ export const registerUser: RequestHandler = async (req, res) => {
     
     //see if user exist
     const user = await prisma.user.findUnique({
-      where: email
+      where: {email}
     });
 
     if(user) return res.json({message: "User already registered"})
