@@ -177,10 +177,22 @@ export const submitMatchAnalysis: RequestHandler = async (req, res) => {
       return res.status(400).json({ error: "matchId is required and cannot be empty" });
     }
 
-  
-    // pull all data from json req body and save in match request id 
-    const { result } = req.body;
-    if (!result || !Array.isArray(result) || result.length === 0) {
+    // Handle both formats: { result: [...] } or raw array [...]
+    let result: any[];
+    if (Array.isArray(req.body)) {
+      // If body is a raw array, use it directly
+      result = req.body;
+    } else if (req.body && Array.isArray(req.body.result)) {
+      // If body has a result property with an array, use that
+      result = req.body.result;
+    } else {
+      return res.status(400).json({ 
+        error: "Request body must be an array or an object with a 'result' array property" 
+      });
+    }
+
+    // Validate the result array
+    if (!result || result.length === 0) {
       return res.status(400).json({ 
         error: "result must be a non-empty array with proper structure" 
       });

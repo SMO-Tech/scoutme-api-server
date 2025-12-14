@@ -17,6 +17,6 @@ router.post("/request",authenticate,validateSchema(matchRequestSchema),requestMa
 router.get("/", authenticate, allmatchRequestsOfUser);
 router.get("/:matchId", authenticate, getSpecificMatchAnalysis);
 router.put("/:matchId", updateMatchStatus); // udpate match status without token 
-router.post("/:matchId/results", submitMatchAnalysis);
+router.post("/:matchId", submitMatchAnalysis);
 
 export default router;
