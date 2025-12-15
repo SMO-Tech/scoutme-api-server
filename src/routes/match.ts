@@ -108,7 +108,6 @@ router.post(
  *         description: Server error
  */
 router.get("/", authenticate, allmatchOfUser); //get all match of user
-
 /**
  * @swagger
  * /match/all-match:
