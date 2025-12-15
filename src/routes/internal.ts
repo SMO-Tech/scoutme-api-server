@@ -15,7 +15,7 @@ const router = Router();
  *       Returns the oldest match with status PENDING.
  *       Requires a valid internal API key via x-api-key header.
  *     tags:
- *       - Matches
+ *       - internal
  *     security:
  *       - ApiKeyAuth: []
  *     responses:
@@ -60,7 +60,7 @@ router.get('/next-match', validateAPIKey(), nextMatch);
  *     summary: Update match status
  *     description: Updates the status of a match by ID.
  *     tags:
- *       - Matches
+ *       - internal
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
