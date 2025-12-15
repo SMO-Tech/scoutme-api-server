@@ -85,14 +85,14 @@ export const createMatchRequest: RequestHandler = async (
         teamType === "yourTeam" ||
         (teamType === "opponentTeam" && hasFullDetails)
       ) {
-        const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
+        // const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
 
         const existingProfile = await prisma.playerProfile.findUnique({
           where: {
             firstName_lastName_dateOfBirth_country: {
               firstName,
               lastName,
-              dateOfBirth: dob!,
+              dateOfBirth: dob,
               country,
             },
           },
