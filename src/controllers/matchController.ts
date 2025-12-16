@@ -3,6 +3,7 @@ import { RequestMatchAnalysisBody } from "../@types";
 import { prisma } from "../utils/db";
 import { MatchStatus } from "@prisma/client";
 
+
 export const createMatchRequest: RequestHandler = async (
   req: Request,
   res: Response
@@ -179,41 +180,79 @@ export const allmatchOfUser: RequestHandler = async (
   }
 };
 
+/**
+ * Public endpoint to fetch a list of all matches on the platform, 
+ * regardless of the user who requested them.
+ * * NOTE: The user check (uid, user validation) is kept but is NOT used 
+ * for filtering the matches, only for logging/context if needed.
+ */
 export const allMatch: RequestHandler = async (req: Request, res: Response) => {
   try {
-    //find user from auht middleware
-    const { uid } = req.user;
+    // 1. User Context (Retained from original code, but not used for filtering)
+    // const { uid } = (req as any).user;
+    // const user = await prisma.user.findUnique({ where: { id: uid } });
+    // if (!user) return res.status(400).json({ error: "user not found!" });
 
-    // check if user exist
-    const user = await prisma.user.findUnique({ where: { id: uid } });
-    if (!user) return res.status(400).json({ error: "user not found!" });
-
-    // defaults
+    // 2. Pagination Defaults
     const page = Number(req.query.page) || 1;
     const limit = Number(req.query.limit) || 20;
     const skip = (page - 1) * limit;
 
+    // 3. Fetch Matches with Relational Data (Clubs and Result)
     const matches = await prisma.match.findMany({
-      //order by newest request
       skip,
       take: limit,
       orderBy: {
         createdAt: "desc",
       },
       // where: {
-      //   status: "COMPLETED",
+      //   status: "COMPLETED", // Optional: Filter only completed matches
       // },
+      // ✅ INCLUDE RELATIONAL DATA FOR LIST VIEW
+      include: {
+        // Fetch the score for display
+        result: {
+          select: {
+            homeScore: true,
+            awayScore: true,
+          }
+        },
+        // Fetch the clubs involved (Home and Away names)
+        matchClubs: {
+          select: {
+            name: true,
+            isUsersTeam: true, // true for home, false for away/opponent
+            jerseyColor: true,
+            // Fetch the canonical logo if the club is linked
+            club: {
+              select: { logoUrl: true } 
+            }
+          }
+        },
+        // Fetch the user who uploaded the match
+        user: {
+            select: { name: true }
+        }
+      }
     });
 
+    // 4. Get Total Count
+    const totalMatches = await prisma.match.count({});
+
+    // 5. Response
     return res.status(200).json({
-      message: "Match requestes fetched successfully",
+      message: "Match data fetched successfully",
       pagination: {
         page,
         limit,
+        totalPages: Math.ceil(totalMatches / limit),
+        totalItems: totalMatches,
       },
       data: matches,
     });
+
   } catch (e: any) {
+    console.error("Error fetching all matches:", e);
     res.status(500).json({ error: e.message || "Something went wrong" });
   }
 };
