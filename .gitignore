@@ -3,3 +3,6 @@ node_modules
 .env
 .dist
 /src/generated/prisma
+# Generated Prisma clients for dual database setup
+generated/client-dev
+generated/client-v2

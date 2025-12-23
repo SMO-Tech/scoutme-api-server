@@ -5,7 +5,15 @@
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prisma:dev:migrate": "prisma migrate dev --schema=./prisma/dev/schema.prisma",
+    "prisma:dev:generate": "prisma generate --schema=./prisma/dev/schema.prisma",
+    "prisma:dev:push": "prisma db push --schema=./prisma/dev/schema.prisma",
+    "prisma:dev:studio": "prisma studio --schema=./prisma/dev/schema.prisma",
+    "prisma:v2:pull": "prisma db pull --schema=./prisma/v2/schema.prisma",
+    "prisma:v2:generate": "prisma generate --schema=./prisma/v2/schema.prisma",
+    "prisma:v2:studio": "prisma studio --schema=./prisma/v2/schema.prisma",
+    "prisma:generate:all": "npm run prisma:dev:generate && npm run prisma:v2:generate"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +26,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "cors": "^2.8.5",
+    "csv-parse": "^6.1.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "firebase-admin": "^13.5.0",
@@ -29,6 +38,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.5",
+    "@types/node": "^25.0.3",
     "@types/pg": "^8.15.6",
     "prisma": "^7.1.0",
     "ts-node-dev": "^2.0.0",
