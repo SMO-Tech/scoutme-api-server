@@ -1,4 +1,11 @@
 import { Router } from "express";
+import {
+  allmatchRequestsOfUser,
+  getSpecificMatchAnalysis,
+  requestMatchAnalysis,
+  updateMatchStatus,
+  submitMatchAnalysis
+} from "../controllers/matchController";
 import { authenticate } from "../middleware/authenticate";
 import { validateSchema } from "../middleware/validate";
 import { createMatchSchema } from "../validators/matchValidators";
