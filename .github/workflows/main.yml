@@ -14,15 +14,7 @@ jobs:
 
       - name: Create deployment archive
         run: |
-          tar --exclude='node_modules' \
-              --exclude='.git' \
-              --exclude='.github' \
-              --exclude='.env' \
-              --exclude='dist' \
-              --exclude='*.log' \
-              --exclude='.DS_Store' \
-              --exclude='deploy.tar.gz' \
-              -czf deploy.tar.gz .
+          git archive --format=tar.gz --output=deploy.tar.gz HEAD
 
       - name: Copy archive to EC2
         uses: appleboy/scp-action@v1.0.0
