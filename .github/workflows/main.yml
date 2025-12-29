@@ -12,8 +12,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create deployment archive
+      - name: Create minimal deployment archive
         run: |
+          # Create archive with only essential files (git archive already excludes node_modules via .gitignore)
           git archive --format=tar.gz --output=deploy.tar.gz HEAD
 
       - name: Copy archive to EC2
@@ -26,7 +27,7 @@ jobs:
           source: "deploy.tar.gz"
           target: "~/scoutme-api-server"
 
-      - name: Extract and deploy on EC2
+      - name: Extract and deploy on EC2 (memory-efficient)
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -35,13 +36,17 @@ jobs:
           port: ${{ secrets.EC2_SSH_PORT || 22 }}
           script: |
             cd ~/scoutme-api-server
-            # Remove old dist folder (will be rebuilt)
-            rm -rf dist 2>/dev/null || true
-            # Extract new files (overwrites existing files, preserves .env and node_modules until we reinstall)
+            # Backup .env if it exists (we don't backup node_modules - npm install will recreate it)
+            [ -f .env ] && cp .env /tmp/.env_backup || true
+            # Remove old files except node_modules and deploy.tar.gz
+            find . -mindepth 1 -maxdepth 1 ! -name 'node_modules' ! -name 'deploy.tar.gz' -exec rm -rf {} \;
+            # Extract archive (node_modules stays untouched, will be updated by npm install)
             tar -xzf deploy.tar.gz
+            # Restore .env
+            [ -f /tmp/.env_backup ] && mv /tmp/.env_backup .env || true
             # Clean up archive
             rm -f deploy.tar.gz
-            # Install/update dependencies
+            # Install/update dependencies (this updates node_modules efficiently)
             npm install
             # Generate Prisma client
             npx prisma generate
