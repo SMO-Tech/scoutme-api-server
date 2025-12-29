@@ -7,7 +7,13 @@ export const registerUser: RequestHandler = async (req, res) => {
   try {
    
     const { name, email, phone, photoUrl, UID } = req.body;
- 
+    
+    //see if user exist
+    const user = await prisma.user.findUnique({
+      where: {email}
+    });
+
+    if(user) return res.json({message: "User already registered"})
 
     const newUser = await prisma.user.create({
       data: {
@@ -15,7 +21,7 @@ export const registerUser: RequestHandler = async (req, res) => {
         email,
         phone,
         photoUrl,
-        UID,
+        id:UID
       },
     });
 
@@ -28,6 +34,7 @@ export const registerUser: RequestHandler = async (req, res) => {
  
   }
 };
+
 export const testToken: RequestHandler = async (req, res) => {
   try {
     const { uid } = req.body;

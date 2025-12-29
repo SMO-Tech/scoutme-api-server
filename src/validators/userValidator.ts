@@ -1,9 +1,9 @@
-import * as yup from "yup";
+import { z } from "zod";
 
-export const registerUserSchema = yup.object().shape({
-  name: yup.string().required("Name is required"),
-  email: yup.string().email("Invalid email").required("Email is required"),
-  phone: yup.string().nullable(),
-  photoUrl: yup.string().nullable(),
-  UID: yup.string().required("FirebaseUID is required!"),
+export const registerUserSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().optional().nullable(),
+  photoUrl: z.string().optional().nullable(),
+  UID: z.string().min(1, "FirebaseUID is required!"),
 });

@@ -1,55 +1,283 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+// ============================================================================
+// USER
+// ============================================================================
 model User {
-  UID          String         @id  //fireabse UId is the only userId
-  name         String
-  email        String         @unique
-  phone        String?
-  photoUrl     String?
-  createdAt    DateTime       @default(now())
-  matchRequest MatchRequest[]
+  id        String   @id // Firebase UID
+  name      String
+  email     String   @unique
+  phone     String?
+  photoUrl  String?
+  createdAt DateTime @default(now())
+
+  // Relationships
+  matches       Match[]
+  ownedPlayers  PlayerProfile[]
+  ownedClubs    Club[]
+  claimRequests ClaimRequest[]
+
+  @@map("users")
 }
 
-model MatchRequest {
-  id          String         @id @default(uuid())
-  userId      String
-  videoUrl    String
-  lineUpImage String?
-  status      MatchStatus    @default(PENDING)
-  createdAt    DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-  analysis    MatchAnalysis? @relation("MatchAnalysisToMatchRequest")
-  user        User           @relation(fields: [userId], references: [UID])
-  players     Player[]
-}
-
-model MatchAnalysis {
-  id      String       @id @default(uuid())
-  matchId String       @unique
-  result  Json
-  match   MatchRequest @relation("MatchAnalysisToMatchRequest", fields: [matchId], references: [id])
-}
-
-model Player {
-  id             String       @id @default(uuid())
-  matchRequestId String
-  name           String
-  jerseyNumber   Int
-  position       String
-  team           String?
-  createdAt      DateTime     @default(now())
-  matchRequest   MatchRequest @relation(fields: [matchRequestId], references: [id])
-}
-
+// ============================================================================
+// MATCH
+// ============================================================================
 enum MatchStatus {
   PENDING
   PROCESSING
   COMPLETED
+  FAILED
+}
+
+enum MatchLevel {
+  PROFESSIONAL
+  SEMI_PROFESSIONAL
+  ACADEMIC_TOP_TIER
+  ACADEMIC_AMATEUR
+  SUNDAY_LEAGUE
+}
+
+model Match {
+  id          String      @id @default(uuid())
+  userId      String
+  videoUrl    String
+  lineUpImage String?
+  status      MatchStatus @default(PENDING)
+  level       MatchLevel
+
+  // Match metadata
+  matchDate       DateTime?
+  competitionName String?
+  venue           String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id])
+  matchPlayers MatchPlayer[] // Only users team players
+  matchClubs   MatchClub[] // Both home and away clubs
+  result       MatchResult?
+
+  @@map("matches")
+}
+
+model MatchResult {
+  id      String @id @default(uuid())
+  matchId String @unique
+
+  // Basic match result
+  homeScore Int
+  awayScore Int
+
+  // Team-level stats (optional for now)
+  homePossession Int? // Percentage
+  awayPossession Int?
+  homeShots      Int?
+  awayShots      Int?
+
+  // Raw AI output for future use
+  rawAiOutput Json?
+
+  createdAt DateTime @default(now())
+
+  match       Match              @relation(fields: [matchId], references: [id])
+  playerStats MatchPlayerStats[] // Only home team player stats
+
+  @@map("match_results")
+}
+
+// ============================================================================
+// MATCH CLUB (Both home and away, but only home has players)
+// ============================================================================
+model MatchClub {
+  id      String  @id @default(uuid())
+  matchId String
+  clubId  String? // Nullable until linked to canonical Club
+
+  // Club data at match time
+  name        String
+  country     String
+  isUsersTeam Boolean // true = home (with players), false = away (opponent)
+  jerseyColor String?
+
+  createdAt DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id])
+  club  Club? @relation(fields: [clubId], references: [id])
+
+  // Each match has exactly 1 home and 1 away club
+  players MatchPlayer[]
+
+  @@unique([matchId, isUsersTeam])
+  @@map("match_clubs")
+}
+
+// ============================================================================
+// MATCH PLAYER (Only home team players for Phase 1)
+// ============================================================================
+
+model MatchPlayer {
+  id              String @id @default(uuid())
+  playerProfileId String
+  matchId         String
+  matchClubId     String
+
+  // Match-specific data
+  jerseyNumber Int
+  position     String
+  isHomeTeam   Boolean @default(true) // Always true in Phase 1
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  match         Match             @relation(fields: [matchId], references: [id])
+  matchClub     MatchClub         @relation(fields: [matchClubId], references: [id])
+  playerProfile PlayerProfile     @relation(fields: [playerProfileId], references: [id])
+  stats         MatchPlayerStats?
+
+  // Prevent duplicate player entries in same match
+  @@unique([matchId, playerProfileId])
+  @@map("match_players")
+}
+
+model MatchPlayerStats {
+  id            String @id @default(uuid())
+  matchPlayerId String @unique
+  matchResultId String
+
+  // Basic stats
+  goals         Int    @default(0)
+  assists       Int    @default(0)
+  shots         Int    @default(0)
+  shotsOnTarget Int    @default(0)
+  passes        Int    @default(0)
+  passAccuracy  Float? // Percentage
+  tackles       Int    @default(0)
+  interceptions Int    @default(0)
+  fouls         Int    @default(0)
+  yellowCards   Int    @default(0)
+  redCards      Int    @default(0)
+  minutesPlayed Int?
+
+  matchPlayer MatchPlayer @relation(fields: [matchPlayerId], references: [id])
+  matchResult MatchResult @relation(fields: [matchResultId], references: [id])
+
+  @@map("match_player_stats")
+}
+
+// ============================================================================
+// PLAYER PROFILE (Canonical - only for home team players in Phase 1)
+// ============================================================================
+enum ClaimStatus {
+  UNCLAIMED
+  PENDING
+  VERIFIED
+}
+
+model PlayerProfile {
+  id          String    @id @default(uuid())
+  firstName   String
+  lastName    String
+  dateOfBirth DateTime? @db.Date
+  country     String?
+  avatar      String?
+
+  primaryPosition String
+
+  status    ClaimStatus @default(UNCLAIMED)
+  ownerId   String?
+  createdAt DateTime    @default(now())
+
+  // Relations
+  owner           User?            @relation(fields: [ownerId], references: [id])
+  matchPlayers    MatchPlayer[]
+  claimRequests   ClaimRequest[]
+  clubMemberships ClubMembership[]
+
+  // Prevent duplicate players (strict matching for Phase 1)
+  @@unique([firstName, lastName, dateOfBirth, country])
+  @@map("player_profiles")
+}
+
+// ============================================================================
+// CLUB MEMBERSHIP (Track player career history)
+// ============================================================================
+model ClubMembership {
+  id              String    @id @default(uuid())
+  playerProfileId String
+  clubId          String
+  startDate       DateTime? @db.Date
+  endDate         DateTime? @db.Date
+  isCurrent       Boolean   @default(false)
+
+  createdAt DateTime @default(now())
+
+  player PlayerProfile @relation(fields: [playerProfileId], references: [id])
+  club   Club          @relation(fields: [clubId], references: [id])
+
+  @@map("club_memberships")
+}
+
+// ============================================================================
+// CLUB (Both home and away clubs)
+// ============================================================================
+model Club {
+  id      String  @id @default(uuid())
+  name    String
+  country String
+  logoUrl String?
+
+  status      ClaimStatus @default(UNCLAIMED)
+  ownerUserId String?
+  createdAt   DateTime    @default(now())
+
+  // Relations
+  owner           User?            @relation(fields: [ownerUserId], references: [id])
+  matchClubs      MatchClub[]
+  claimRequests   ClaimRequest[]
+  clubMemberships ClubMembership[]
+
+  // Prevent duplicate clubs
+  @@unique([name, country])
+  @@map("clubs")
+}
+
+// ============================================================================
+// CLAIM REQUEST
+// ============================================================================
+enum ClaimType {
+  PLAYER
+  CLUB
+}
+
+model ClaimRequest {
+  id       String      @id @default(uuid())
+  userId   String
+  playerId String?
+  clubId   String?
+  type     ClaimType
+  status   ClaimStatus @default(PENDING)
+  notes    String?
+
+  // Audit trail
+  reviewedBy      String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User           @relation(fields: [userId], references: [id])
+  player PlayerProfile? @relation(fields: [playerId], references: [id])
+  club   Club?          @relation(fields: [clubId], references: [id])
+
+  @@map("claim_requests")
 }

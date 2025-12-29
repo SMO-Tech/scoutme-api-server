@@ -1,31 +1,37 @@
-import * as yup from "yup";
+import { z } from "zod";
 import { playerPostition } from "../utils/constant";
 
-export const matchRequestSchema = yup.object().shape({
-  videoUrl: yup
-    .string()
-    .url("Video URL must be a valid URL")
-    .required("Video URL is required"),
+export const createMatchSchema = z.object({
+  videoUrl: z.string().url(),
+  lineUpImage: z.string().url().optional(),
 
-  lineUpUrl: yup.string().url("Lineup URL must be valid!").nullable(),
+  matchLevel: z.enum([
+    "PROFESSIONAL",
+    "SEMI_PROFESSIONAL",
+    "ACADEMIC_TOP_TIER",
+    "ACADEMIC_AMATEUR",
+    "SUNDAY_LEAGUE",
+  ]),
 
-  players: yup
-    .array()
-    .of(
-      yup.object().shape({
-        name: yup.string().required("Player name is required!"),
-        jerseyNumber: yup
-          .number()
-          .typeError("Jersey number must be a number!")
-          .required("Jersey number is required!"),
-        position: yup
-          .string()
-          .oneOf(playerPostition, "Position must be one of the allowed roles!")
-          .required("Position is required!"),
-        team: yup.string().nullable(),
-      })
-    )
-    .required("Players list is required")
-    .min(11, "You must provide exactly 11 players")
-    .max(11, "You must provide exactly 11 players"),
+  clubs: z.array(
+    z.object({
+      name: z.string(),
+      country: z.string(),
+      jerseyColor: z.string().optional(),
+      logoUrl: z.string().optional(),
+      teamType: z.enum(["yourTeam", "opponentTeam"]),
+    })
+  ),
+
+  players: z.array(
+    z.object({
+      firstName: z.string(),
+      lastName: z.string(),
+      jerseyNumber: z.number().int().min(1),
+      dateOfBirth: z.string().nullable().optional(),
+      position: z.enum(playerPostition as [string, ...string[]]),
+      country: z.string(),
+      teamType: z.enum(["yourTeam", "opponentTeam"]),
+    })
+  ),
 });

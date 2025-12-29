@@ -9,13 +9,17 @@ const db_1 = require("../utils/db");
 const registerUser = async (req, res) => {
     try {
         const { name, email, phone, photoUrl, UID } = req.body;
+        //see if user exist
+        const user = await db_1.prisma.user.findUnique(email);
+        if (user)
+            return res.json({ message: "User already registered" });
         const newUser = await db_1.prisma.user.create({
             data: {
                 name,
                 email,
                 phone,
                 photoUrl,
-                UID,
+                id: UID
             },
         });
         res

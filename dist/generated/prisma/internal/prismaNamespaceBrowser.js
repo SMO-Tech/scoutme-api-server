@@ -48,7 +48,7 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.JsonNullValueFilter = exports.NullsOrder = exports.QueryMode = exports.JsonNullValueInput = exports.SortOrder = exports.PlayerScalarFieldEnum = exports.MatchAnalysisScalarFieldEnum = exports.MatchRequestScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.Decimal = void 0;
+exports.JsonNullValueFilter = exports.NullsOrder = exports.QueryMode = exports.NullableJsonNullValueInput = exports.SortOrder = exports.ClaimRequestScalarFieldEnum = exports.ClubScalarFieldEnum = exports.ClubMembershipScalarFieldEnum = exports.PlayerProfileScalarFieldEnum = exports.MatchPlayerStatsScalarFieldEnum = exports.MatchPlayerScalarFieldEnum = exports.MatchClubScalarFieldEnum = exports.MatchResultScalarFieldEnum = exports.MatchScalarFieldEnum = exports.UserScalarFieldEnum = exports.TransactionIsolationLevel = exports.ModelName = exports.AnyNull = exports.JsonNull = exports.DbNull = exports.NullTypes = exports.Decimal = void 0;
 const runtime = __importStar(require("@prisma/client/runtime/index-browser"));
 exports.Decimal = runtime.Decimal;
 exports.NullTypes = {
@@ -76,9 +76,15 @@ exports.JsonNull = runtime.JsonNull;
 exports.AnyNull = runtime.AnyNull;
 exports.ModelName = {
     User: 'User',
-    MatchRequest: 'MatchRequest',
-    MatchAnalysis: 'MatchAnalysis',
-    Player: 'Player'
+    Match: 'Match',
+    MatchResult: 'MatchResult',
+    MatchClub: 'MatchClub',
+    MatchPlayer: 'MatchPlayer',
+    MatchPlayerStats: 'MatchPlayerStats',
+    PlayerProfile: 'PlayerProfile',
+    ClubMembership: 'ClubMembership',
+    Club: 'Club',
+    ClaimRequest: 'ClaimRequest'
 };
 /*
  * Enums
@@ -90,41 +96,125 @@ exports.TransactionIsolationLevel = {
     Serializable: 'Serializable'
 };
 exports.UserScalarFieldEnum = {
-    UID: 'UID',
+    id: 'id',
     name: 'name',
     email: 'email',
     phone: 'phone',
     photoUrl: 'photoUrl',
     createdAt: 'createdAt'
 };
-exports.MatchRequestScalarFieldEnum = {
+exports.MatchScalarFieldEnum = {
     id: 'id',
     userId: 'userId',
     videoUrl: 'videoUrl',
     lineUpImage: 'lineUpImage',
     status: 'status',
+    level: 'level',
+    matchDate: 'matchDate',
+    competitionName: 'competitionName',
+    venue: 'venue',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
 };
-exports.MatchAnalysisScalarFieldEnum = {
+exports.MatchResultScalarFieldEnum = {
     id: 'id',
     matchId: 'matchId',
-    result: 'result'
+    homeScore: 'homeScore',
+    awayScore: 'awayScore',
+    homePossession: 'homePossession',
+    awayPossession: 'awayPossession',
+    homeShots: 'homeShots',
+    awayShots: 'awayShots',
+    rawAiOutput: 'rawAiOutput',
+    createdAt: 'createdAt'
 };
-exports.PlayerScalarFieldEnum = {
+exports.MatchClubScalarFieldEnum = {
     id: 'id',
-    matchRequestId: 'matchRequestId',
+    matchId: 'matchId',
+    clubId: 'clubId',
     name: 'name',
+    country: 'country',
+    isUsersTeam: 'isUsersTeam',
+    jerseyColor: 'jerseyColor',
+    createdAt: 'createdAt'
+};
+exports.MatchPlayerScalarFieldEnum = {
+    id: 'id',
+    playerProfileId: 'playerProfileId',
+    matchId: 'matchId',
+    matchClubId: 'matchClubId',
     jerseyNumber: 'jerseyNumber',
     position: 'position',
-    team: 'team',
+    isHomeTeam: 'isHomeTeam',
     createdAt: 'createdAt'
+};
+exports.MatchPlayerStatsScalarFieldEnum = {
+    id: 'id',
+    matchPlayerId: 'matchPlayerId',
+    matchResultId: 'matchResultId',
+    goals: 'goals',
+    assists: 'assists',
+    shots: 'shots',
+    shotsOnTarget: 'shotsOnTarget',
+    passes: 'passes',
+    passAccuracy: 'passAccuracy',
+    tackles: 'tackles',
+    interceptions: 'interceptions',
+    fouls: 'fouls',
+    yellowCards: 'yellowCards',
+    redCards: 'redCards',
+    minutesPlayed: 'minutesPlayed'
+};
+exports.PlayerProfileScalarFieldEnum = {
+    id: 'id',
+    firstName: 'firstName',
+    lastName: 'lastName',
+    dateOfBirth: 'dateOfBirth',
+    country: 'country',
+    avatar: 'avatar',
+    primaryPosition: 'primaryPosition',
+    status: 'status',
+    ownerId: 'ownerId',
+    createdAt: 'createdAt'
+};
+exports.ClubMembershipScalarFieldEnum = {
+    id: 'id',
+    playerProfileId: 'playerProfileId',
+    clubId: 'clubId',
+    startDate: 'startDate',
+    endDate: 'endDate',
+    isCurrent: 'isCurrent',
+    createdAt: 'createdAt'
+};
+exports.ClubScalarFieldEnum = {
+    id: 'id',
+    name: 'name',
+    country: 'country',
+    logoUrl: 'logoUrl',
+    status: 'status',
+    ownerUserId: 'ownerUserId',
+    createdAt: 'createdAt'
+};
+exports.ClaimRequestScalarFieldEnum = {
+    id: 'id',
+    userId: 'userId',
+    playerId: 'playerId',
+    clubId: 'clubId',
+    type: 'type',
+    status: 'status',
+    notes: 'notes',
+    reviewedBy: 'reviewedBy',
+    reviewedAt: 'reviewedAt',
+    rejectionReason: 'rejectionReason',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
 };
 exports.SortOrder = {
     asc: 'asc',
     desc: 'desc'
 };
-exports.JsonNullValueInput = {
+exports.NullableJsonNullValueInput = {
+    DbNull: 'DbNull',
     JsonNull: 'JsonNull'
 };
 exports.QueryMode = {
