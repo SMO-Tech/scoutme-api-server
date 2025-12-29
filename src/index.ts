@@ -6,7 +6,7 @@ import clubRouter from "./routes/club_routes";
 import playerRouter from "./routes/player_routes";
 import internalRouter from "./routes/internal"
 
-import cors from "cors";
+import cors from "cors"
 import swagger from './swagger'
 dotenv.config();
 const app = express();
