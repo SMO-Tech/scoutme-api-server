@@ -348,7 +348,7 @@ export const getMatchAnalysis: RequestHandler = async (
 
 export const updateMatchStatus: RequestHandler = async (req, res) => {
   try {
-    // const { uid } = req.user as { uid: string };
+    const { uid } = req.user as { uid: string };
 
     const user = await prisma.user.findUnique({ where: { id: uid } });
     if (!user) return res.status(404).json({ error: "User not found!" });
@@ -413,7 +413,7 @@ export const submitMatchAnalysis: RequestHandler = async (req, res) => {
     }
 
     // 3. CHECK IF MATCH EXISTS FIRST
-    const existingMatch = await prisma.matchRequest.findUnique({
+    const existingMatch = await prisma.match.findUnique({
       where: { id: matchId }
     });
 
@@ -421,17 +421,19 @@ export const submitMatchAnalysis: RequestHandler = async (req, res) => {
       return res.status(404).json({ error: "MatchRequest not found" });
     }
 
-    const analysis = await prisma.matchAnalysis.upsert({
+    const analysis = await prisma.matchResult.upsert({
       where: { 
         matchId: matchId  // This determines if record exists
       },
       update: { 
-        result: result,    // If exists, update
+        rawAiOutput: result,    // If exists, update
         // updatedAt: new Date()
       },
       create: { 
         matchId: matchId,  // If doesn't exist, create
-        result: result
+        rawAiOutput: result,
+        homeScore: 0,
+        awayScore: 0
       }
     });
     
