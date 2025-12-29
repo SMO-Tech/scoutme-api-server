@@ -9,48 +9,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Create minimal deployment archive
-        run: |
-          # Create archive with only essential files (git archive already excludes node_modules via .gitignore)
-          git archive --format=tar.gz --output=deploy.tar.gz HEAD
-
-      - name: Copy archive to EC2
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          port: ${{ secrets.EC2_SSH_PORT || 22 }}
-          source: "deploy.tar.gz"
-          target: "~/scoutme-api-server"
-
-      - name: Extract and deploy on EC2 (memory-efficient)
+      - name: Deploy via SSH (git pull on server)
         uses: appleboy/ssh-action@v1.2.2
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_SSH_PORT || 22 }}
+          envs: GH_TOKEN,GH_REPO
           script: |
+            # Create directory if it doesn't exist
+            mkdir -p ~/scoutme-api-server
             cd ~/scoutme-api-server
-            # Backup .env if it exists (we don't backup node_modules - npm install will recreate it)
-            [ -f .env ] && cp .env /tmp/.env_backup || true
-            # Remove old files except node_modules and deploy.tar.gz
-            find . -mindepth 1 -maxdepth 1 ! -name 'node_modules' ! -name 'deploy.tar.gz' -exec rm -rf {} \;
-            # Extract archive (node_modules stays untouched, will be updated by npm install)
-            tar -xzf deploy.tar.gz
-            # Restore .env
-            [ -f /tmp/.env_backup ] && mv /tmp/.env_backup .env || true
-            # Clean up archive
-            rm -f deploy.tar.gz
-            # Install/update dependencies (this updates node_modules efficiently)
+            
+            # Clone or pull the repository (uses GH_TOKEN for private repos)
+            REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+            
+            if [ -d .git ]; then
+              # Already a git repo, update remote URL and pull
+              git remote set-url origin "$REPO_URL"
+              git fetch origin main
+              git reset --hard origin/main
+            else
+              # First time setup - clone the repo
+              git clone "$REPO_URL" .
+            fi
+            
+            # Install/update dependencies
             npm install
+            
             # Generate Prisma client
             npx prisma generate
+            
             # Build the project
             npm run build
+            
             # Restart or start the application
             pm2 restart scoutme-api || pm2 start dist/index.js --name scoutme-api
