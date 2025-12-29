@@ -21,7 +21,16 @@ jobs:
           port: ${{ secrets.EC2_SSH_PORT || 22 }}
           source: "."
           target: "~/scoutme-api-server"
+          rm: true
           strip_components: 0
+          exclude: |
+            node_modules
+            .git
+            .github
+            .env
+            dist
+            *.log
+            .DS_Store
 
       - name: SSH into EC2 and restart API
         uses: appleboy/ssh-action@v1.2.2
