@@ -16,7 +16,7 @@ const options = {
       },
     ],
   },
-  apis: ["./src/routes/*.ts"], // Path to your route files with TSDoc comments
+  apis: ["./src/routes/*.ts"], // Path to your route files with TSDoc 
 };
 
 const specs = swaggerJsdoc(options);
