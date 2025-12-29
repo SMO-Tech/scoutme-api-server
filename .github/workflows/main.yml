@@ -12,27 +12,29 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Copy files to EC2
+      - name: Create deployment archive
+        run: |
+          tar --exclude='node_modules' \
+              --exclude='.git' \
+              --exclude='.github' \
+              --exclude='.env' \
+              --exclude='dist' \
+              --exclude='*.log' \
+              --exclude='.DS_Store' \
+              --exclude='deploy.tar.gz' \
+              -czf deploy.tar.gz .
+
+      - name: Copy archive to EC2
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_SSH_PORT || 22 }}
-          source: "."
+          source: "deploy.tar.gz"
           target: "~/scoutme-api-server"
-          rm: true
-          strip_components: 0
-          exclude: |
-            node_modules
-            .git
-            .github
-            .env
-            dist
-            *.log
-            .DS_Store
 
-      - name: SSH into EC2 and restart API
+      - name: Extract and deploy on EC2
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -41,7 +43,17 @@ jobs:
           port: ${{ secrets.EC2_SSH_PORT || 22 }}
           script: |
             cd ~/scoutme-api-server
+            # Remove old dist folder (will be rebuilt)
+            rm -rf dist 2>/dev/null || true
+            # Extract new files (overwrites existing files, preserves .env and node_modules until we reinstall)
+            tar -xzf deploy.tar.gz
+            # Clean up archive
+            rm -f deploy.tar.gz
+            # Install/update dependencies
             npm install
+            # Generate Prisma client
             npx prisma generate
+            # Build the project
             npm run build
+            # Restart or start the application
             pm2 restart scoutme-api || pm2 start dist/index.js --name scoutme-api
