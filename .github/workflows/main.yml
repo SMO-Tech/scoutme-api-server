@@ -48,4 +48,4 @@ jobs:
             npm run build
             
             # Restart or start the application
-            pm2 restart scoutme-api || pm2 start dist/index.js --name scoutme-api
+            pm2 restart backend || pm2 start dist/index.js --name backend
