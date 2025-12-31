@@ -93,6 +93,49 @@ router.post(
 
 /**
  * @swagger
+ * /match/request:
+ *   post:
+ *     summary: Create a new match request
+ *     tags:
+ *       - Match
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               videoUrl:
+ *                 type: string
+ *                 format: uri
+ *     responses:
+ *       201:
+ *         description: Match created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 matchId:
+ *                   type: string
+ *       400:
+ *         description: User not found or validation error
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  "/request",
+  authenticate,
+  validateSchema(createMatchSchema),
+  createMatchRequest
+);
+
+/**
+ * @swagger
  * /match/:
  *   get:
  *     tags: [Match]

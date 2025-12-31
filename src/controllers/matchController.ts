@@ -1,7 +1,7 @@
 import { Request, RequestHandler, Response } from "express";
 import { RequestMatchAnalysisBody } from "../@types";
 import { prisma } from "../utils/db";
-import { MatchStatus } from "@prisma/client";
+import { MatchStatus, MatchLevel } from "@prisma/client";
 
 
 export const createMatchRequest: RequestHandler = async (
@@ -24,121 +24,127 @@ export const createMatchRequest: RequestHandler = async (
       data: {
         userId: uid,
         videoUrl,
-        lineUpImage,
-        level: matchLevel,
+        level: (matchLevel as MatchLevel) || MatchLevel.SUNDAY_LEAGUE,
+        // lineUpImage,
       },
     });
 
     // Step 2: Create or connect clubs
-    const clubMap: Record<string, string> = {}; // teamType => matchClubId
-    for (const clubInput of clubs) {
-      const { name, country, jerseyColor, teamType, logoUrl } = clubInput;
-      const isUsersClub = teamType === "yourTeam";
+    // const clubMap: Record<string, string> = {}; // teamType => matchClubId
+    // for (const clubInput of clubs) {
+    //   const { name, country, jerseyColor, teamType, logoUrl } = clubInput;
+    //   const isUsersClub = teamType === "yourTeam";
 
-      // Try to find existing canonical club
-      let club = await prisma.club.findUnique({
-        where: { name_country: { name, country } },
-      });
+    //   // Try to find existing canonical club
+    //   let club = await prisma.club.findUnique({
+    //     where: { name_country: { name, country } },
+    //   });
 
-      if (!club) {
-        club = await prisma.club.create({
-          data: { name, country, logoUrl },
-        });
-      }
+    //   if (!club) {
+    //     club = await prisma.club.create({
+    //       data: { name, country, logoUrl },
+    //     });
+    //   }
 
-      // Create MatchClub
-      const matchClub = await prisma.matchClub.create({
-        data: {
-          matchId: match.id,
-          clubId: club.id,
-          name,
-          country,
-          jerseyColor,
-          isUsersTeam: isUsersClub,
-        },
-      });
+    //   // Create MatchClub
+    //   const matchClub = await prisma.matchClub.create({
+    //     data: {
+    //       matchId: match.id,
+    //       clubId: club.id,
+    //       name,
+    //       country,
+    //       jerseyColor,
+    //       isUsersTeam: isUsersClub,
+    //     },
+    //   });
 
-      clubMap[teamType] = matchClub.id;
-    }
+    //   clubMap[teamType] = matchClub.id;
+    // }
 
-    // Step 3: Create players and link to MatchClub
-    for (const playerInput of players) {
-      const {
-        firstName,
-        lastName,
-        jerseyNumber,
-        dateOfBirth,
-        position,
-        country,
-        teamType,
-      } = playerInput;
+    // // Step 3: Create players and link to MatchClub
+    // for (const playerInput of players) {
+    //   const {
+    //     firstName,
+    //     lastName,
+    //     jerseyNumber,
+    //     dateOfBirth,
+    //     position,
+    //     country,
+    //     teamType,
+    //   } = playerInput;
 
-      let playerProfileId: string | undefined;
+    //   let playerProfileId: string | undefined;
 
-      // if dob not given put default DOB
-      const dob = dateOfBirth ? new Date(dateOfBirth) : new Date("1900-01-01");
+    //   // if dob not given put default DOB
+    //   const dob = dateOfBirth ? new Date(dateOfBirth) : new Date("1900-01-01");
 
-      const hasFullDetails =
-        firstName && lastName && dateOfBirth && position && country;
+    //   const hasFullDetails =
+    //     firstName && lastName && dateOfBirth && position && country;
 
-      // Create canonical profile for your team or complete opponent player
-      if (
-        teamType === "yourTeam" ||
-        (teamType === "opponentTeam" && hasFullDetails)
-      ) {
-        // const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
+    //   // Create canonical profile for your team or complete opponent player
+    //   if (
+    //     teamType === "yourTeam" ||
+    //     (teamType === "opponentTeam" && hasFullDetails)
+    //   ) {
+    //     // const dob = dateOfBirth ? new Date(dateOfBirth) : undefined;
 
-        const existingProfile = await prisma.playerProfile.findUnique({
-          where: {
-            firstName_lastName_dateOfBirth_country: {
-              firstName,
-              lastName,
-              dateOfBirth: dob,
-              country,
-            },
-          },
-        });
+    //     const existingProfile = await prisma.playerProfile.findUnique({
+    //       where: {
+    //         firstName_lastName_dateOfBirth_country: {
+    //           firstName,
+    //           lastName,
+    //           dateOfBirth: dob,
+    //           country,
+    //         },
+    //       },
+    //     });
 
-        if (existingProfile) {
-          playerProfileId = existingProfile.id;
-        } else if (dob) {
-          const newProfile = await prisma.playerProfile.create({
-            data: {
-              firstName,
-              lastName,
-              dateOfBirth: dob,
-              country,
-              primaryPosition: position,
-            },
-          });
-          playerProfileId = newProfile.id;
-        }
-      }
+    //     if (existingProfile) {
+    //       playerProfileId = existingProfile.id;
+    //     } else if (dob) {
+    //       const newProfile = await prisma.playerProfile.create({
+    //         data: {
+    //           firstName,
+    //           lastName,
+    //           dateOfBirth: dob,
+    //           country,
+    //           primaryPosition: position,
+    //         },
+    //       });
+    //       playerProfileId = newProfile.id;
+    //     }
+    //   }
 
-      // Step 4: Create MatchPlayer
-      const matchPlayerData: any = {
-        matchId: match.id,
-        matchClubId: clubMap[teamType], // <-- use the foreign key directly
-        jerseyNumber,
-        position,
-        isHomeTeam: teamType === "yourTeam",
-      };
+    //   // Step 4: Create MatchPlayer
+    //   const matchPlayerData: any = {
+    //     matchId: match.id,
+    //     matchClubId: clubMap[teamType], // <-- use the foreign key directly
+    //     jerseyNumber,
+    //     position,
+    //     isHomeTeam: teamType === "yourTeam",
+    //   };
 
-      // Only include playerProfileId if it exists
-      if (playerProfileId) {
-        matchPlayerData.playerProfileId = playerProfileId;
-      }
-      await prisma.matchPlayer.create({
-        data: matchPlayerData,
-      });
-    }
+    //   // Only include playerProfileId if it exists
+    //   if (playerProfileId) {
+    //     matchPlayerData.playerProfileId = playerProfileId;
+    //   }
+    //   await prisma.matchPlayer.create({
+    //     data: matchPlayerData,
+    //   });
+    // }
 
     res.status(201).json({
-      message: "Match request created successfullty!",
-      matchId: match.id,
+      "status": "success",
+      message: "Match request created successfully!",
+      data: {
+        matchId: match.id,
+      },
     });
   } catch (e: any) {
-    res.status(500).json({ error: e.message || "Something went wrong" });
+    res.status(500).json({
+      "status": "error",
+      message: e.message || "Something went wrong",
+    });
   }
 };
 
