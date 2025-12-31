@@ -289,63 +289,75 @@ export const getMatchAnalysis: RequestHandler = async (
     if (!isValidId)
       return res.status(400).json({ error: "The match is not found" });
 
+    // const matchInfo = await prisma.match.findUnique({
+    //   where: { id: matchId },
+    //   select: {
+    //     id: true,
+    //     videoUrl: true,
+    //     status: true,
+    //     level: true,
+    //     matchDate: true,
+    //     competitionName: true,
+    //     venue: true,
+
+    //     matchClubs: {
+    //       select: {
+    //         id: true,
+    //         name: true,
+    //         country: true,
+    //         jerseyColor: true,
+    //         isUsersTeam: true,
+    //         club: {
+    //           select: {
+    //             id: true,
+    //             logoUrl: true,
+    //           },
+    //         },
+    //       },
+    //     },
+
+    //     matchPlayers: {
+    //       select: {
+    //         jerseyNumber: true,
+    //         position: true,
+    //         playerProfile: {
+    //           select: {
+    //             firstName: true,
+    //             lastName: true,
+    //             country: true,
+    //             primaryPosition: true,
+    //             avatar: true,
+    //           },
+    //         },
+    //       },
+    //     },
+
+    //     result: {
+    //       select: {
+    //         homeScore: true,
+    //         awayScore: true,
+    //         homePossession: true,
+    //         awayPossession: true,
+    //       },
+    //     },
+    //   },
+    // });
+
     const matchInfo = await prisma.match.findUnique({
       where: { id: matchId },
-      select: {
-        id: true,
-        videoUrl: true,
-        status: true,
-        level: true,
-        matchDate: true,
-        competitionName: true,
-        venue: true,
-
-        matchClubs: {
-          select: {
-            id: true,
-            name: true,
-            country: true,
-            jerseyColor: true,
-            isUsersTeam: true,
-            club: {
-              select: {
-                id: true,
-                logoUrl: true,
-              },
-            },
-          },
-        },
-
-        matchPlayers: {
-          select: {
-            jerseyNumber: true,
-            position: true,
-            playerProfile: {
-              select: {
-                firstName: true,
-                lastName: true,
-                country: true,
-                primaryPosition: true,
-                avatar: true,
-              },
-            },
-          },
-        },
-
+      include: {
         result: {
           select: {
-            homeScore: true,
-            awayScore: true,
-            homePossession: true,
-            awayPossession: true,
+            rawAiOutput: true,
           },
         },
       },
     });
+    if (!matchInfo) return res.status(400).json({ error: "match not found!" });
 
-    return res.status(201).json({
-      message: "Match information is successfully fetched!",
-      data: matchInfo,
+    return res.status(200).json({
+      message: "Match analysis successfully fetched!",
+      data: matchInfo.result?.rawAiOutput ?? null,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Something went wrong" });
