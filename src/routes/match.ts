@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../middleware/authenticate";
 import { validateSchema } from "../middleware/validate";
 import { createMatchSchema } from "../validators/matchValidators";
-import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis, updateMatchStatus } from "../controllers/matchController";
+import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis } from "../controllers/matchController";
 
 
 const router = Router();
@@ -93,6 +93,49 @@ router.post(
 
 /**
  * @swagger
+ * /match/request:
+ *   post:
+ *     summary: Create a new match request
+ *     tags:
+ *       - Match
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               videoUrl:
+ *                 type: string
+ *                 format: uri
+ *     responses:
+ *       201:
+ *         description: Match created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 matchId:
+ *                   type: string
+ *       400:
+ *         description: User not found or validation error
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  "/request",
+  authenticate,
+  validateSchema(createMatchSchema),
+  createMatchRequest
+);
+
+/**
+ * @swagger
  * /match/:
  *   get:
  *     tags: [Match]
@@ -160,41 +203,5 @@ router.get("/all-match", authenticate, allMatch); //get all match
  *         description: Server error
  */
 router.get("/:matchId", authenticate, getMatchAnalysis); // get match analysis by id
-/**
- * @swagger
- * /match/{matchId}:
- *   post:
- *     tags: [Match]
- *     summary: Update match status
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: matchId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               status:
- *                 type: string
- *                 enum: [PENDING, PROCESSING, COMPLETED, FAILED]
- *                 example: PROCESSING
- *     responses:
- *       200:
- *         description: Match status updated
- *       400:
- *         description: Invalid or missing status
- *       404:
- *         description: Match not found
- *       500:
- *         description: Server error
- */
-router.post("/:matchId", authenticate, updateMatchStatus);
 
 export default router;

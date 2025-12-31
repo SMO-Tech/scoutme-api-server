@@ -1,7 +1,7 @@
 import { Router } from "express";
 
 import { validateAPIKey } from "../middleware/validateApiKey";
-import { nextMatch, updateMatchStatus } from "../controllers/internalController";
+import { nextMatch, updateMatchStatusInternal, submitMatchAnalysis } from "../controllers/internalController";
 
 const router = Router();
 
@@ -105,7 +105,9 @@ router.get('/next-match', validateAPIKey(), nextMatch);
  *       500:
  *         description: Server error
  */
-router.post('/:matchId', validateAPIKey(), updateMatchStatus);
+router.put('/:matchId', validateAPIKey(), updateMatchStatusInternal);
 
+// save match analysis data
+router.post('/result/:matchId/', validateAPIKey(), submitMatchAnalysis);
 
 export default router
