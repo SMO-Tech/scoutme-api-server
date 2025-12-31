@@ -13,9 +13,10 @@ const app = express();
 app.use(
   cors({
     origin: [
-      process.env.FRONTEND_URL!,
+      process.env.FRONTEND_URL,
+      "https://scoutme.cloud",
       "http://localhost:3000",
-    ],
+    ].filter((origin): origin is string => Boolean(origin)), // Remove any undefined/null values
     credentials: true,
   })
 );
