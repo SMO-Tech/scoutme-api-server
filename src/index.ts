@@ -10,30 +10,25 @@ import cors from "cors"
 import swagger from './swagger'
 dotenv.config();
 const app = express();
+
 app.use(
   cors({
     origin: [
-      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+      process.env.FRONTEND_URL!,
       "http://localhost:3000",
     ],
     credentials: true,
   })
 );
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
-
 app.get("/", (req, res) => {
   res.json("Hello World");
 });
-
+//swagger
 app.use("/user", userRouter);
 app.use("/match", matchRouter);
 app.use("/club", clubRouter);
 app.use("/player", playerRouter);
-app.use("/internal", internalRouter);
-
-
-//swagger route 
+app.use("/internal", internalRouter); 
 app.use("/swagger", swagger.swaggerUi.serve, swagger.swaggerUi.setup(swagger.specs))
 
 const PORT = process.env.PORT || 4000;
