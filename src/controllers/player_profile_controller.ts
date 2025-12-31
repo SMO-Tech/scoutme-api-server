@@ -3,19 +3,94 @@ import {prisma} from "../utils/db";
 import { formatDate, parseDate } from "../utils/helper_functions";
 import { PlayerProfile } from "@prisma/client";
 
+// Helper function to calculate age from date of birth
+function calculateAge(dateOfBirth: Date | null): number | null {
+    if (!dateOfBirth) return null;
+    const today = new Date();
+    const birthDate = new Date(dateOfBirth);
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        age--;
+    }
+    return age;
+}
 
-
-
-
-// List all player profiles
+// List all player profiles with cursor-based pagination
 export const listPlayerProfiles = async (req : Request, res : Response) => {
     try {
-        const playerProfiles = await prisma.playerProfile.findMany();
-        const formattedProfiles = playerProfiles.map((profile : PlayerProfile) => ({
-            ...profile,
-            dateOfBirth: profile.dateOfBirth ? formatDate(new Date(profile.dateOfBirth)) : null
-        }));
-        res.status(200).json({status: "success", message: "Player profiles listed successfully", data: formattedProfiles});
+        // Parse query parameters
+        const cursor = req.query.cursor as string | undefined;
+        const limit = parseInt(req.query.limit as string) || 20; // Default 20, max 100
+        const take = Math.min(limit, 100); // Cap at 100 records per page
+
+        // Build query with cursor pagination
+        const queryOptions: any = {
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                primaryPosition: true,
+                city: true,
+                state: true,
+                country: true,
+                dateOfBirth: true,
+                thumbIconUrl: true,
+                thumbNormalUrl: true,
+                thumbProfileUrl: true,
+                thumbUrl: true,
+            },
+            take: take + 1, // Fetch one extra to check if there's a next page
+            orderBy: {
+                id: 'asc', // Order by id for consistent cursor pagination
+            }
+        };
+
+        // Add cursor if provided
+        if (cursor) {
+            queryOptions.cursor = {
+                id: cursor
+            };
+            queryOptions.skip = 1; // Skip the cursor record itself
+        }
+
+        const playerProfiles = await prisma.playerProfile.findMany(queryOptions);
+
+        // Check if there's a next page
+        const hasNextPage = playerProfiles.length > take;
+        const profiles = hasNextPage ? playerProfiles.slice(0, take) : playerProfiles;
+        const nextCursor = hasNextPage ? profiles[profiles.length - 1].id : null;
+
+        const formattedProfiles = profiles.map((profile) => {
+            // Build location string from city, state, country
+            const locationParts = [profile.city, profile.state, profile.country].filter(Boolean);
+            const location = locationParts.length > 0 ? locationParts.join(', ') : null;
+
+            return {
+                id: profile.id,
+                name: `${profile.firstName} ${profile.lastName}`.trim(),
+                position: profile.primaryPosition,
+                location,
+                age: calculateAge(profile.dateOfBirth),
+                profile: {
+                    thumbUrl: profile.thumbUrl,
+                    thumbProfileUrl: profile.thumbProfileUrl,
+                    thumbNormalUrl: profile.thumbNormalUrl,
+                    thumbIconUrl: profile.thumbIconUrl,
+                },
+            };
+        });
+
+        res.status(200).json({
+            status: "success",
+            message: "Player profiles listed successfully",
+            data: formattedProfiles,
+            pagination: {
+                hasNextPage,
+                nextCursor,
+                limit: take,
+            }
+        });
     } catch (error : any) {
         res.status(500).json({
             status: "error",
@@ -29,16 +104,164 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
 export const getPlayerProfileById = async (req : Request, res : Response) => {
     try {
         const {id} = req.params;
-        const playerProfile = await prisma.playerProfile.findUnique({where: {
-                id
-            }});
-        if (! playerProfile) {
+        const playerProfile = await prisma.playerProfile.findUnique({
+            where: { id },
+            include: {
+                clubMemberships: {
+                    include: {
+                        club: {
+                            select: {
+                                id: true,
+                                name: true,
+                                country: true,
+                                logoUrl: true,
+                                thumbUrl: true,
+                                thumbProfileUrl: true,
+                                thumbNormalUrl: true,
+                                thumbIconUrl: true,
+                            }
+                        }
+                    },
+                    orderBy: {
+                        isCurrent: 'desc',
+                        startDate: 'desc'
+                    }
+                },
+                owner: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        photoUrl: true,
+                    }
+                },
+                matchPlayers: {
+                    select: {
+                        id: true,
+                        jerseyNumber: true,
+                        position: true,
+                        isHomeTeam: true,
+                        match: {
+                            select: {
+                                id: true,
+                                matchDate: true,
+                                competitionName: true,
+                                venue: true,
+                                status: true,
+                            }
+                        }
+                    },
+                    orderBy: {
+                        match: {
+                            matchDate: 'desc'
+                        }
+                    },
+                    take: 10 // Limit to last 10 matches
+                }
+            }
+        });
+
+        if (!playerProfile) {
             return res.status(404).json({status: "error", message: "Player profile not found"});
         }
+
+        // Build location string from city, state, country
+        const locationParts = [playerProfile.city, playerProfile.state, playerProfile.country].filter(Boolean);
+        const location = locationParts.length > 0 ? locationParts.join(', ') : null;
+
+        // Build images array from non-null image URLs
+        const images = [
+            playerProfile.thumbUrl,
+            playerProfile.thumbProfileUrl,
+            playerProfile.thumbNormalUrl,
+            playerProfile.thumbIconUrl,
+        ].filter((url): url is string => url !== null);
+
+        // Format club memberships
+        const formattedMemberships = playerProfile.clubMemberships.map(membership => ({
+            id: membership.id,
+            club: membership.club,
+            startDate: membership.startDate ? formatDate(new Date(membership.startDate)) : null,
+            endDate: membership.endDate ? formatDate(new Date(membership.endDate)) : null,
+            isCurrent: membership.isCurrent,
+            createdAt: formatDate(new Date(membership.createdAt)),
+        }));
+
+        // Format match history
+        const formattedMatches = playerProfile.matchPlayers.map(mp => ({
+            id: mp.id,
+            jerseyNumber: mp.jerseyNumber,
+            position: mp.position,
+            isHomeTeam: mp.isHomeTeam,
+            match: {
+                id: mp.match.id,
+                matchDate: mp.match.matchDate ? formatDate(new Date(mp.match.matchDate)) : null,
+                competitionName: mp.match.competitionName,
+                venue: mp.match.venue,
+                status: mp.match.status,
+            }
+        }));
+
+        // Format the complete profile
         const formattedProfile = {
-            ... playerProfile,
-            dateOfBirth: playerProfile.dateOfBirth ? formatDate(new Date(playerProfile.dateOfBirth)) : null
+            // Basic Info
+            id: playerProfile.id,
+            name: `${playerProfile.firstName} ${playerProfile.lastName}`.trim(),
+            firstName: playerProfile.firstName,
+            lastName: playerProfile.lastName,
+            dateOfBirth: playerProfile.dateOfBirth ? formatDate(new Date(playerProfile.dateOfBirth)) : null,
+            age: calculateAge(playerProfile.dateOfBirth),
+            
+            // Location
+            location,
+            city: playerProfile.city,
+            state: playerProfile.state,
+            country: playerProfile.country,
+            nationality: playerProfile.nationality,
+            
+            // Position & Physical
+            position: playerProfile.primaryPosition,
+            height: playerProfile.height ? parseFloat(playerProfile.height.toString()) : null,
+            weight: playerProfile.weight ? parseFloat(playerProfile.weight.toString()) : null,
+            strongFoot: playerProfile.strongFoot,
+            gender: playerProfile.gender,
+            
+            // Images
+            avatar: playerProfile.avatar,
+            profile: {
+                thumbUrl: playerProfile.thumbUrl,
+                thumbProfileUrl: playerProfile.thumbProfileUrl,
+                thumbNormalUrl: playerProfile.thumbNormalUrl,
+                thumbIconUrl: playerProfile.thumbIconUrl,
+            },
+            images,
+            
+            // Club & Contract
+            club: playerProfile.club,
+            league: playerProfile.league,
+            contractExpiry: playerProfile.contractExpiry ? formatDate(new Date(playerProfile.contractExpiry)) : null,
+            monthSalary: playerProfile.monthSalary,
+            
+            // Professional
+            agentName: playerProfile.agentName,
+            language: playerProfile.language,
+            
+            // Status & Ownership
+            status: playerProfile.status,
+            owner: playerProfile.owner,
+            ownerId: playerProfile.ownerId,
+            
+            // Legacy
+            playerId: playerProfile.playerId,
+            
+            // Relations
+            clubMemberships: formattedMemberships,
+            matchHistory: formattedMatches,
+            
+            // Metadata
+            createdAt: formatDate(new Date(playerProfile.createdAt)),
         };
+
         res.status(200).json({status: "success", message: "Player profile fetched successfully", data: formattedProfile});
     } catch (error : any) {
         res.status(500).json({
