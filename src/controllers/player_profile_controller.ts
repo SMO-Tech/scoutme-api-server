@@ -13,7 +13,7 @@ function calculateAge(dateOfBirth: Date | null): number | null {
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
         age--;
     }
-    return age;
+    return age; 
 }
 
 // List all player profiles with cursor-based pagination
@@ -21,7 +21,7 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
     try {
         // Parse query parameters
         const cursor = req.query.cursor as string | undefined;
-        const limit = parseInt(req.query.limit as string) || 20; // Default 20, max 100
+        const limit = parseInt(req.query.limit as string) || 4; // Default 4 (for 4 items per row), max 100
         const take = Math.min(limit, 100); // Cap at 100 records per page
 
         // Build query with cursor pagination
@@ -66,12 +66,20 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
             const locationParts = [profile.city, profile.state, profile.country].filter(Boolean);
             const location = locationParts.length > 0 ? locationParts.join(', ') : null;
 
+            // Get primary image URL - prioritize thumbNormalUrl, then fallback to others
+            const imageUrl = profile.thumbNormalUrl || 
+                           profile.thumbProfileUrl || 
+                           profile.thumbUrl || 
+                           profile.thumbIconUrl || 
+                           null;
+
             return {
                 id: profile.id,
                 name: `${profile.firstName} ${profile.lastName}`.trim(),
                 position: profile.primaryPosition,
                 location,
                 age: calculateAge(profile.dateOfBirth),
+                imageUrl, // Primary image for easy access
                 profile: {
                     thumbUrl: profile.thumbUrl,
                     thumbProfileUrl: profile.thumbProfileUrl,
@@ -107,26 +115,6 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
         const playerProfile = await prisma.playerProfile.findUnique({
             where: { id },
             include: {
-                clubMemberships: {
-                    include: {
-                        club: {
-                            select: {
-                                id: true,
-                                name: true,
-                                country: true,
-                                logoUrl: true,
-                                thumbUrl: true,
-                                thumbProfileUrl: true,
-                                thumbNormalUrl: true,
-                                thumbIconUrl: true,
-                            }
-                        }
-                    },
-                    orderBy: {
-                        isCurrent: 'desc',
-                        startDate: 'desc'
-                    }
-                },
                 owner: {
                     select: {
                         id: true,
@@ -165,6 +153,31 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
             return res.status(404).json({status: "error", message: "Player profile not found"});
         }
 
+        // Fetch club memberships separately with proper ordering
+        const clubMemberships = await prisma.clubMembership.findMany({
+            where: {
+                playerProfileId: id
+            },
+            include: {
+                club: {
+                    select: {
+                        id: true,
+                        name: true,
+                        country: true,
+                        logoUrl: true,
+                        thumbUrl: true,
+                        thumbProfileUrl: true,
+                        thumbNormalUrl: true,
+                        thumbIconUrl: true,
+                    }
+                }
+            },
+            orderBy: [
+                { isCurrent: 'desc' },
+                { startDate: 'desc' }
+            ]
+        });
+
         // Build location string from city, state, country
         const locationParts = [playerProfile.city, playerProfile.state, playerProfile.country].filter(Boolean);
         const location = locationParts.length > 0 ? locationParts.join(', ') : null;
@@ -178,7 +191,7 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
         ].filter((url): url is string => url !== null);
 
         // Format club memberships
-        const formattedMemberships = playerProfile.clubMemberships.map(membership => ({
+        const formattedMemberships = clubMemberships.map(membership => ({
             id: membership.id,
             club: membership.club,
             startDate: membership.startDate ? formatDate(new Date(membership.startDate)) : null,
@@ -226,8 +239,12 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
             strongFoot: playerProfile.strongFoot,
             gender: playerProfile.gender,
             
-            // Images
-            avatar: playerProfile.avatar,
+            // Images - prioritize thumbNormalUrl
+            imageUrl: playerProfile.thumbNormalUrl || 
+                     playerProfile.thumbProfileUrl || 
+                     playerProfile.thumbUrl || 
+                     playerProfile.thumbIconUrl || 
+                     null,
             profile: {
                 thumbUrl: playerProfile.thumbUrl,
                 thumbProfileUrl: playerProfile.thumbProfileUrl,

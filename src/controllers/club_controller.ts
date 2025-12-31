@@ -3,11 +3,87 @@ import { RequestMatchAnalysisBody } from "../@types";
 import { prisma } from "../utils/db";
 
 
-// List all clubs
+// List all clubs with cursor-based pagination
 export const listClubs = async ( req: Request, res: Response) => {
   try {
-    const clubs = await prisma.club.findMany();
-    res.status(200).json({ status: "success", message: "Clubs listed successfully", data : clubs });
+    // Parse query parameters
+    const cursor = req.query.cursor as string | undefined;
+    const limit = parseInt(req.query.limit as string) || 4; // Default 4 (for 4 items per row), max 100
+    const take = Math.min(limit, 100); // Cap at 100 records per page
+
+    // Build query with cursor pagination
+    const queryOptions: any = {
+      select: {
+        id: true,
+        name: true,
+        country: true,
+        logoUrl: true,
+        thumbIconUrl: true,
+        thumbNormalUrl: true,
+        thumbProfileUrl: true,
+        thumbUrl: true,
+        description: true,
+        memberCount: true,
+        viewCount: true,
+      },
+      take: take + 1, // Fetch one extra to check if there's a next page
+      orderBy: {
+        id: 'asc', // Order by id for consistent cursor pagination
+      }
+    };
+
+    // Add cursor if provided
+    if (cursor) {
+      queryOptions.cursor = {
+        id: cursor
+      };
+      queryOptions.skip = 1; // Skip the cursor record itself
+    }
+
+    const clubs = await prisma.club.findMany(queryOptions);
+
+    // Check if there's a next page
+    const hasNextPage = clubs.length > take;
+    const clubList = hasNextPage ? clubs.slice(0, take) : clubs;
+    const nextCursor = hasNextPage ? clubList[clubList.length - 1].id : null;
+
+    const formattedClubs = clubList.map((club) => {
+      // Get primary image URL - prioritize thumbNormalUrl, then fallback to others
+      const imageUrl = club.thumbNormalUrl || 
+                     club.thumbProfileUrl || 
+                     club.thumbUrl || 
+                     club.thumbIconUrl || 
+                     club.logoUrl || 
+                     null;
+
+      return {
+        id: club.id,
+        name: club.name,
+        country: club.country,
+        description: club.description,
+        memberCount: club.memberCount,
+        viewCount: club.viewCount,
+        imageUrl, // Primary image for easy access
+        profile: {
+          logoUrl: club.logoUrl,
+          thumbUrl: club.thumbUrl,
+          thumbProfileUrl: club.thumbProfileUrl,
+          thumbNormalUrl: club.thumbNormalUrl,
+          thumbIconUrl: club.thumbIconUrl,
+        },
+      };
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Clubs listed successfully",
+      data: formattedClubs,
+      pagination: {
+        hasNextPage,
+        nextCursor,
+        limit: take,
+      }
+    });
   } catch (error: any) {
     res.status(500).json({ status: "error", message: "Something went wrong", error: error.message || "Something went wrong" });
   }
