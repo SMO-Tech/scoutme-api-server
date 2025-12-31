@@ -26,15 +26,6 @@ app.get("/", (req, res) => {
   res.json("Hello World");
 });
 
-// Test route - placed early to avoid conflicts
-app.get('/test', (req, res) => {
-  res.json({ 
-    message: "Test route working",
-    headers: req.headers,
-    timestamp: new Date().toISOString()
-  });
-});
-
 app.use("/user", userRouter);
 app.use("/match", matchRouter);
 app.use("/club", clubRouter);
@@ -43,15 +34,6 @@ app.use("/internal", internalRouter);
 
 //swagger route 
 app.use("/swagger", swagger.swaggerUi.serve, swagger.swaggerUi.setup(swagger.specs))
-
-// 404 handler - must be last
-app.use((req, res) => {
-  res.status(404).json({ 
-    error: "Route not found", 
-    path: req.path,
-    method: req.method 
-  });
-});
 
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () =>

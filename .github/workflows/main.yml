@@ -21,13 +21,12 @@ jobs:
           port: ${{ secrets.EC2_SSH_PORT || 22 }}
           envs: GH_TOKEN,GH_REPO
           script: |
-            # Create directory if it doesn't exist
+            # 1. Setup Directory
             mkdir -p ~/scoutme-api-server
             cd ~/scoutme-api-server
             
-            # Clone or pull the repository (uses GH_TOKEN for private repos)
+            # 2. Git Pull / Clone
             REPO_URL="https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
-            
             if [ -d .git ]; then
               # Already a git repo, update remote URL and pull
               git remote set-url origin "$REPO_URL"
@@ -38,14 +37,31 @@ jobs:
               git clone "$REPO_URL" .
             fi
             
-            # Install/update dependencies
+            # 3. Install Dependencies
             npm install
-            
-            # Generate Prisma client
             npx prisma generate
             
-            # Build the project
+            # 4. CLEANUP: Delete old build
+            echo "🧹 Deleting old dist folder..."
+            rm -rf dist
+            
+            # 5. Build Fresh
+            echo "🏗️  Building project..."
             npm run build
             
-            # Restart or start the application
-            pm2 restart backend || pm2 start dist/index.js --name backend
+            # 6. STOP & KILL: The "Nuclear" Option for Port 4000
+            echo "💀 Killing any process blocking Port 4000..."
+            
+            # Stop PM2 backend first (ignore error if it's already stopped)
+            pm2 stop backend || true
+            
+            # Find whatever is holding port 4000 and force kill it (-9)
+            # This handles the "zombie" process issue you faced earlier
+            sudo lsof -t -i:4000 | xargs -r sudo kill -9
+            
+            # 7. Start Application
+            echo "🚀 Starting Backend..."
+            pm2 start dist/index.js --name backend
+            
+            # Save the list so it survives reboots
+            pm2 save
