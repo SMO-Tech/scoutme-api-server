@@ -32,6 +32,7 @@ app.use("/club", clubRouter);
 app.use("/player", playerRouter);
 app.use("/internal", internalRouter);
 
+app.get('/test', (req,res) => res.json(req.headers));
 
 //swagger route 
 app.use("/swagger", swagger.swaggerUi.serve, swagger.swaggerUi.setup(swagger.specs))

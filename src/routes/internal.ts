@@ -51,7 +51,7 @@ const router = Router();
  *       500:
  *         description: Server error
  */
-router.get('/next-match', nextMatch);
+router.get('/next-match', validateAPIKey(), nextMatch);
 
 /**
  * @swagger
@@ -105,10 +105,10 @@ router.get('/next-match', nextMatch);
  *       500:
  *         description: Server error
  */
-router.put('/:matchId', updateMatchStatusInternal);
+router.put('/:matchId', validateAPIKey(), updateMatchStatusInternal);
 
 // save match analysis data
-router.post('/result/:matchId/', submitMatchAnalysis);
+router.post('/result/:matchId/', validateAPIKey(),  submitMatchAnalysis);
 
 // utsav - ignore the line for main testing
 export default router
