@@ -8,11 +8,28 @@ function calculateAge(dateOfBirth: Date | null): number | null {
     if (!dateOfBirth) return null;
     const today = new Date();
     const birthDate = new Date(dateOfBirth);
-    let age = today.getFullYear() - birthDate.getFullYear();
+    
+    // Validate the date - return null for invalid dates
+    if (isNaN(birthDate.getTime())) return null;
+    
+    // Return null for dates that are clearly invalid (before 1900 or in the future)
+    const birthYear = birthDate.getFullYear();
+    const currentYear = today.getFullYear();
+    if (birthYear < 1900 || birthYear > currentYear) {
+        return null;
+    }
+    
+    let age = currentYear - birthYear;
     const monthDiff = today.getMonth() - birthDate.getMonth();
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
         age--;
     }
+    
+    // Return null for negative ages (future dates) or unreasonably high ages
+    if (age < 0 || age > 150) {
+        return null;
+    }
+    
     return age; 
 }
 
