@@ -18,6 +18,7 @@ model User {
   ownedClubs    Club[]
   matches       Match[]
   ownedPlayers  PlayerProfile[]
+  profileVisits ProfileVisit[]
 
   @@map("users")
 }
@@ -141,6 +142,7 @@ model PlayerProfile {
   strongFoot      String?
   weight          Decimal?         @db.Decimal(5, 2)
   playerId        Int?
+  profileType     String?
   thumbIconUrl    String?
   thumbNormalUrl  String?
   thumbProfileUrl String?
@@ -149,6 +151,8 @@ model PlayerProfile {
   clubMemberships ClubMembership[]
   matchPlayers    MatchPlayer[]
   owner           User?            @relation(fields: [ownerId], references: [id])
+  visitsReceived  ProfileVisit[]   @relation("VisitedProfiles")
+  visitsMade      ProfileVisit[]   @relation("VisitorProfiles")
 
   @@unique([firstName, lastName, dateOfBirth, country])
   @@map("player_profiles")
@@ -217,6 +221,24 @@ model ClaimRequest {
   user            User           @relation(fields: [userId], references: [id])
 
   @@map("claim_requests")
+}
+
+model ProfileVisit {
+  id                String        @id @default(uuid())
+  visitedProfileId  String        // The profile that was visited
+  visitorUserId     String        // The user who visited (from JWT token)
+  visitorProfileId  String?       // The visitor's player profile ID (if they have one)
+  visitorProfileType String?      // Football Player, Scout, Agent, Coach, etc.
+  visitedAt         DateTime      @default(now())
+  
+  visitedProfile    PlayerProfile @relation("VisitedProfiles", fields: [visitedProfileId], references: [id])
+  visitor           User          @relation(fields: [visitorUserId], references: [id])
+  visitorProfile    PlayerProfile? @relation("VisitorProfiles", fields: [visitorProfileId], references: [id])
+
+  @@index([visitedProfileId, visitedAt])
+  @@index([visitorUserId])
+  @@index([visitedAt])
+  @@map("profile_visits")
 }
 
 /// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
