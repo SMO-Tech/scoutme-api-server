@@ -52,6 +52,7 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
                 state: true,
                 country: true,
                 dateOfBirth: true,
+                profileType: true,
                 thumbIconUrl: true,
                 thumbNormalUrl: true,
                 thumbProfileUrl: true,
@@ -96,6 +97,7 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
                 position: profile.primaryPosition,
                 location,
                 age: calculateAge(profile.dateOfBirth),
+                profileType: profile.profileType,
                 imageUrl, // Primary image for easy access
                 profile: {
                     thumbUrl: profile.thumbUrl,
@@ -310,8 +312,7 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
 export const searchPlayerProfiles = async (req : Request, res : Response) => {
     try {
         const {firstName, lastName, dateOfBirth, country} = req.query;
-        console.log(req.query);
-        console.log(firstName, lastName, dateOfBirth, country);
+        
         // Build where clause conditionally
         const where: any = {};
         
@@ -332,12 +333,62 @@ export const searchPlayerProfiles = async (req : Request, res : Response) => {
             where.country = {contains: country, mode: 'insensitive'};
         }
         
-        const playerProfiles = await prisma.playerProfile.findMany({where});
-        const formattedProfiles = playerProfiles.map((profile :PlayerProfile) => ({
-            ...profile,
-            dateOfBirth: profile.dateOfBirth ? formatDate(new Date(profile.dateOfBirth)) : null
-        }));
-        res.status(200).json({status: "success", message: "Player profiles searched successfully", data: formattedProfiles});
+        // Fetch player profiles with same fields as listPlayerProfiles
+        const playerProfiles = await prisma.playerProfile.findMany({
+            where,
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                primaryPosition: true,
+                city: true,
+                state: true,
+                country: true,
+                dateOfBirth: true,
+                thumbIconUrl: true,
+                thumbNormalUrl: true,
+                thumbProfileUrl: true,
+                thumbUrl: true,
+            },
+            orderBy: {
+                firstName: 'asc'
+            }
+        });
+
+        // Format profiles same as listPlayerProfiles
+        const formattedProfiles = playerProfiles.map((profile) => {
+            // Build location string from city, state, country
+            const locationParts = [profile.city, profile.state, profile.country].filter(Boolean);
+            const location = locationParts.length > 0 ? locationParts.join(', ') : null;
+
+            // Get primary image URL - prioritize thumbNormalUrl, then fallback to others
+            const imageUrl = profile.thumbNormalUrl || 
+                           profile.thumbProfileUrl || 
+                           profile.thumbUrl || 
+                           profile.thumbIconUrl || 
+                           null;
+
+            return {
+                id: profile.id,
+                name: `${profile.firstName} ${profile.lastName}`.trim(),
+                position: profile.primaryPosition,
+                location,
+                age: calculateAge(profile.dateOfBirth),
+                imageUrl, // Primary image for easy access
+                profile: {
+                    thumbUrl: profile.thumbUrl,
+                    thumbProfileUrl: profile.thumbProfileUrl,
+                    thumbNormalUrl: profile.thumbNormalUrl,
+                    thumbIconUrl: profile.thumbIconUrl,
+                },
+            };
+        });
+
+        res.status(200).json({
+            status: "success",
+            message: "Player profiles searched successfully",
+            data: formattedProfiles
+        });
     } catch (error : any) {
         res.status(500).json({
             status: "error",

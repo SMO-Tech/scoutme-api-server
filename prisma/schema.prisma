@@ -141,6 +141,7 @@ model PlayerProfile {
   strongFoot      String?
   weight          Decimal?         @db.Decimal(5, 2)
   playerId        Int?
+  profileType     String?
   thumbIconUrl    String?
   thumbNormalUrl  String?
   thumbProfileUrl String?
