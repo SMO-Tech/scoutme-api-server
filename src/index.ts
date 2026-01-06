@@ -4,7 +4,8 @@ import userRouter from "./routes/user";
 import matchRouter from "./routes/match";
 import clubRouter from "./routes/club_routes";
 import playerRouter from "./routes/player_routes";
-import internalRouter from "./routes/internal"
+import internalRouter from "./routes/internal";
+import staticsRouter from "./routes/statics_routes";
 
 import cors from "cors"
 import swagger from './swagger'
@@ -32,6 +33,7 @@ app.use("/match", matchRouter);
 app.use("/club", clubRouter);
 app.use("/player", playerRouter);
 app.use("/internal", internalRouter);
+app.use("/statics", staticsRouter);
 
 //swagger route 
 app.use("/swagger", swagger.swaggerUi.serve, swagger.swaggerUi.setup(swagger.specs))
