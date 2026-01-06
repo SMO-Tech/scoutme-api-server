@@ -52,6 +52,7 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
                 state: true,
                 country: true,
                 dateOfBirth: true,
+                profileType: true,
                 thumbIconUrl: true,
                 thumbNormalUrl: true,
                 thumbProfileUrl: true,
@@ -96,6 +97,7 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
                 position: profile.primaryPosition,
                 location,
                 age: calculateAge(profile.dateOfBirth),
+                profileType: profile.profileType,
                 imageUrl, // Primary image for easy access
                 profile: {
                     thumbUrl: profile.thumbUrl,
