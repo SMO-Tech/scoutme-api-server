@@ -127,6 +127,40 @@ export const listPlayerProfiles = async (req : Request, res : Response) => {
     }
 };
 
+// Helper function to track profile visit
+async function trackProfileVisit(visitedProfileId: string, visitorUserId: string) {
+    try {
+        // Don't track if user is viewing their own profile
+        const visitedProfile = await prisma.playerProfile.findUnique({
+            where: { id: visitedProfileId },
+            select: { ownerId: true }
+        });
+
+        if (visitedProfile?.ownerId === visitorUserId) {
+            return; // Don't track self-visits
+        }
+
+        // Get visitor's player profile to get their profileType
+        const visitorProfile = await prisma.playerProfile.findFirst({
+            where: { ownerId: visitorUserId },
+            select: { id: true, profileType: true }
+        });
+
+        // Record the visit
+        await prisma.profileVisit.create({
+            data: {
+                visitedProfileId,
+                visitorUserId,
+                visitorProfileId: visitorProfile?.id || null,
+                visitorProfileType: visitorProfile?.profileType || null,
+            }
+        });
+    } catch (error: any) {
+        // Silently fail visit tracking - don't break the main request
+        console.error('Error tracking profile visit:', error.message);
+    }
+}
+
 // Get a player profile by id
 export const getPlayerProfileById = async (req : Request, res : Response) => {
     try {
@@ -172,69 +206,19 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
             return res.status(404).json({status: "error", message: "Player profile not found"});
         }
 
-        // Fetch club memberships separately with proper ordering
-        const clubMemberships = await prisma.clubMembership.findMany({
-            where: {
-                playerProfileId: id
-            },
-            include: {
-                club: {
-                    select: {
-                        id: true,
-                        name: true,
-                        country: true,
-                        logoUrl: true,
-                        thumbUrl: true,
-                        thumbProfileUrl: true,
-                        thumbNormalUrl: true,
-                        thumbIconUrl: true,
-                    }
-                }
-            },
-            orderBy: [
-                { isCurrent: 'desc' },
-                { startDate: 'desc' }
-            ]
-        });
+        // Track visit if user is authenticated (from JWT token)
+        if (req.user && req.user.uid) {
+            // Find user by Firebase UID
+            const visitorUser = await prisma.user.findUnique({
+                where: { id: req.user.uid }
+            });
 
-        // Build location string from city, state, country
-        const locationParts = [playerProfile.city, playerProfile.state, playerProfile.country].filter(Boolean);
-        const location = locationParts.length > 0 ? locationParts.join(', ') : null;
-
-        // Build images array from non-null image URLs
-        const images = [
-            playerProfile.thumbUrl,
-            playerProfile.thumbProfileUrl,
-            playerProfile.thumbNormalUrl,
-            playerProfile.thumbIconUrl,
-        ].filter((url): url is string => url !== null);
-
-        // Format club memberships
-        const formattedMemberships = clubMemberships.map(membership => ({
-            id: membership.id,
-            club: membership.club,
-            startDate: membership.startDate ? formatDate(new Date(membership.startDate)) : null,
-            endDate: membership.endDate ? formatDate(new Date(membership.endDate)) : null,
-            isCurrent: membership.isCurrent,
-            createdAt: formatDate(new Date(membership.createdAt)),
-        }));
-
-        // Format match history
-        const formattedMatches = playerProfile.matchPlayers.map(mp => ({
-            id: mp.id,
-            jerseyNumber: mp.jerseyNumber,
-            position: mp.position,
-            isHomeTeam: mp.isHomeTeam,
-            match: {
-                id: mp.match.id,
-                matchDate: mp.match.matchDate ? formatDate(new Date(mp.match.matchDate)) : null,
-                competitionName: mp.match.competitionName,
-                venue: mp.match.venue,
-                status: mp.match.status,
+            if (visitorUser) {
+                // Track visit asynchronously (don't wait for it)
+                trackProfileVisit(id, visitorUser.id).catch(console.error);
             }
-        }));
+        }
 
-        // Format the complete profile
         const formattedProfile = {
             // Basic Info
             id: playerProfile.id,
@@ -444,5 +428,219 @@ export const updatePlayerProfile = async (req : Request, res : Response) => {
         res.status(200).json({status: "success", message: "Player profile updated successfully", data: formattedProfile});
     } catch (error : any) {
         res.status(500).json({status: "error", message: "Something went wrong", error: error.message || "Something went wrong"});
+    }
+};
+
+// Get profile visit analytics - who visited my profile
+export const getProfileVisitAnalytics = async (req : Request, res : Response) => {
+    try {
+        // Get the authenticated user
+        if (!req.user || !req.user.uid) {
+            return res.status(401).json({status: "error", message: "Authentication required"});
+        }
+
+        const user = await prisma.user.findUnique({
+            where: { id: req.user.uid },
+            include: {
+                ownedPlayers: {
+                    select: { id: true }
+                }
+            }
+        });
+
+        if (!user) {
+            return res.status(404).json({status: "error", message: "User not found"});
+        }
+
+        // Get all profiles owned by this user
+        const profileIds = user.ownedPlayers.map(p => p.id);
+        
+        if (profileIds.length === 0) {
+            return res.status(200).json({
+                status: "success",
+                message: "No profile visits found",
+                data: {
+                    todayStats: {},
+                    recentVisits: [],
+                    totalVisits: 0
+                }
+            });
+        }
+
+        // Get today's date range
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        // Get today's visits grouped by profile type
+        const todayVisits = await prisma.profileVisit.findMany({
+            where: {
+                visitedProfileId: { in: profileIds },
+                visitedAt: {
+                    gte: today,
+                    lt: tomorrow
+                }
+            },
+            include: {
+                visitor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                        photoUrl: true
+                    }
+                },
+                visitorProfile: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        profileType: true,
+                        thumbNormalUrl: true,
+                        thumbProfileUrl: true,
+                        thumbUrl: true,
+                        thumbIconUrl: true
+                    }
+                }
+            },
+            orderBy: {
+                visitedAt: 'desc'
+            }
+        });
+
+        // Group today's visits by profile type
+        const todayStats: Record<string, any> = {};
+        const visitsByType: Record<string, any[]> = {};
+
+        todayVisits.forEach(visit => {
+            const profileType = visit.visitorProfileType || 'Unknown';
+            
+            if (!todayStats[profileType]) {
+                todayStats[profileType] = {
+                    count: 0,
+                    visitors: []
+                };
+                visitsByType[profileType] = [];
+            }
+
+            todayStats[profileType].count++;
+            
+            const visitorInfo = {
+                userId: visit.visitor.id,
+                name: visit.visitor.name,
+                email: visit.visitor.email,
+                phone: visit.visitor.phone,
+                photoUrl: visit.visitor.photoUrl,
+                profileId: visit.visitorProfile?.id || null,
+                profileName: visit.visitorProfile ? `${visit.visitorProfile.firstName} ${visit.visitorProfile.lastName}`.trim() : null,
+                profileType: visit.visitorProfileType,
+                profileImageUrl: visit.visitorProfile?.thumbNormalUrl || 
+                                visit.visitorProfile?.thumbProfileUrl || 
+                                visit.visitorProfile?.thumbUrl || 
+                                visit.visitorProfile?.thumbIconUrl || 
+                                null,
+                visitedAt: formatDate(new Date(visit.visitedAt))
+            };
+
+            // Only add if not already in list (unique visitors)
+            const exists = visitsByType[profileType].some(v => v.userId === visitorInfo.userId);
+            if (!exists) {
+                visitsByType[profileType].push(visitorInfo);
+                todayStats[profileType].visitors.push(visitorInfo);
+            }
+        });
+
+        // Get recent visits (last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const recentVisits = await prisma.profileVisit.findMany({
+            where: {
+                visitedProfileId: { in: profileIds },
+                visitedAt: {
+                    gte: thirtyDaysAgo
+                }
+            },
+            include: {
+                visitor: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                        phone: true,
+                        photoUrl: true
+                    }
+                },
+                visitorProfile: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        profileType: true,
+                        thumbNormalUrl: true,
+                        thumbProfileUrl: true,
+                        thumbUrl: true,
+                        thumbIconUrl: true
+                    }
+                }
+            },
+            orderBy: {
+                visitedAt: 'desc'
+            },
+            take: 50 // Last 50 visits
+        });
+
+        const formattedRecentVisits = recentVisits.map(visit => ({
+            id: visit.id,
+            visitor: {
+                userId: visit.visitor.id,
+                name: visit.visitor.name,
+                email: visit.visitor.email,
+                phone: visit.visitor.phone,
+                photoUrl: visit.visitor.photoUrl,
+            },
+            visitorProfile: visit.visitorProfile ? {
+                id: visit.visitorProfile.id,
+                name: `${visit.visitorProfile.firstName} ${visit.visitorProfile.lastName}`.trim(),
+                profileType: visit.visitorProfile.profileType,
+                imageUrl: visit.visitorProfile.thumbNormalUrl || 
+                         visit.visitorProfile.thumbProfileUrl || 
+                         visit.visitorProfile.thumbUrl || 
+                         visit.visitorProfile.thumbIconUrl || 
+                         null
+            } : null,
+            visitedAt: formatDate(new Date(visit.visitedAt)),
+            visitedAtRaw: visit.visitedAt
+        }));
+
+        // Get total visit count
+        const totalVisits = await prisma.profileVisit.count({
+            where: {
+                visitedProfileId: { in: profileIds }
+            }
+        });
+
+        res.status(200).json({
+            status: "success",
+            message: "Profile visit analytics fetched successfully",
+            data: {
+                todayStats: Object.keys(todayStats).map(type => ({
+                    profileType: type,
+                    count: todayStats[type].count,
+                    uniqueVisitors: todayStats[type].visitors.length,
+                    visitors: todayStats[type].visitors
+                })),
+                recentVisits: formattedRecentVisits,
+                totalVisits
+            }
+        });
+    } catch (error : any) {
+        res.status(500).json({
+            status: "error",
+            message: "Something went wrong",
+            error: error.message || "Something went wrong"
+        });
     }
 };

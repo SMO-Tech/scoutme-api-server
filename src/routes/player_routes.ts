@@ -4,6 +4,7 @@ import {
   getPlayerProfileById,
   searchPlayerProfiles,
   updatePlayerProfile,
+  getProfileVisitAnalytics,
 } from "../controllers/player_profile_controller";
 import { authenticate } from "../middleware/authenticate";
 
@@ -121,5 +122,72 @@ router.get("/:id", authenticate, getPlayerProfileById); // get a player profile 
  *         description: Server error
  */
 router.put("/:id", authenticate, updatePlayerProfile); // update a player profile
+
+/**
+ * @swagger
+ * /player/analytics/visits:
+ *   get:
+ *     summary: Get profile visit analytics - who visited my profile
+ *     tags: [Player Profiles]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile visit analytics fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: success
+ *                 message:
+ *                   type: string
+ *                   example: Profile visit analytics fetched successfully
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     todayStats:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           profileType:
+ *                             type: string
+ *                             example: Football Player
+ *                           count:
+ *                             type: integer
+ *                             example: 5
+ *                           uniqueVisitors:
+ *                             type: integer
+ *                             example: 5
+ *                           visitors:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 userId:
+ *                                   type: string
+ *                                 name:
+ *                                   type: string
+ *                                 email:
+ *                                   type: string
+ *                                 phone:
+ *                                   type: string
+ *                                 profileType:
+ *                                   type: string
+ *                                 visitedAt:
+ *                                   type: string
+ *                     recentVisits:
+ *                       type: array
+ *                     totalVisits:
+ *                       type: integer
+ *       401:
+ *         description: Authentication required
+ *       500:
+ *         description: Server error
+ */
+router.get("/analytics/visits", authenticate, getProfileVisitAnalytics); // get profile visit analytics
 
 export default router;
