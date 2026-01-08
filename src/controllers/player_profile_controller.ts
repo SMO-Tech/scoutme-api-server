@@ -165,6 +165,7 @@ async function trackProfileVisit(visitedProfileId: string, visitorUserId: string
 export const getPlayerProfileById = async (req : Request, res : Response) => {
     try {
         const {id} = req.params;
+        console.log("id", id);
         const playerProfile = await prisma.playerProfile.findUnique({
             where: { id },
             include: {
@@ -175,29 +176,6 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
                         email: true,
                         photoUrl: true,
                     }
-                },
-                matchPlayers: {
-                    select: {
-                        id: true,
-                        jerseyNumber: true,
-                        position: true,
-                        isHomeTeam: true,
-                        match: {
-                            select: {
-                                id: true,
-                                matchDate: true,
-                                competitionName: true,
-                                venue: true,
-                                status: true,
-                            }
-                        }
-                    },
-                    orderBy: {
-                        match: {
-                            matchDate: 'desc'
-                        }
-                    },
-                    take: 10 // Limit to last 10 matches
                 }
             }
         });
@@ -229,7 +207,7 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
             age: calculateAge(playerProfile.dateOfBirth),
             
             // Location
-            location,
+            location: `${playerProfile.city}, ${playerProfile.state}, ${playerProfile.country}`,
             city: playerProfile.city,
             state: playerProfile.state,
             country: playerProfile.country,
@@ -254,7 +232,7 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
                 thumbNormalUrl: playerProfile.thumbNormalUrl,
                 thumbIconUrl: playerProfile.thumbIconUrl,
             },
-            images,
+
             
             // Club & Contract
             club: playerProfile.club,
@@ -273,10 +251,6 @@ export const getPlayerProfileById = async (req : Request, res : Response) => {
             
             // Legacy
             playerId: playerProfile.playerId,
-            
-            // Relations
-            clubMemberships: formattedMemberships,
-            matchHistory: formattedMatches,
             
             // Metadata
             createdAt: formatDate(new Date(playerProfile.createdAt)),
