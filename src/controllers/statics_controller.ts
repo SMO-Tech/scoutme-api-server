@@ -211,92 +211,25 @@ export const getClubStatistics: RequestHandler = async (req, res) => {
             });
         }
 
-        // Get schema from environment variable or default to 'public'
-        const schema = process.env.SMO_V1_SCHEMA || 'public';
-        const tableName = process.env.SMO_V1_STATISTICS_TABLE || 'statistics_cache';
-        
-        // Build the base query for club statistics
-        const buildQuery = (schemaName: string, tblName: string) => `
-            SELECT
+        // Direct query to public.statistics_cache table
+        const query = `
+            SELECT 
                 action_type,
-                heatmap_data->'Defensive' AS defensive_json
-            FROM ${schemaName}.${tblName}
-            WHERE cache_type = 'club'
-              AND club_id = $1
+                donut_chart_data, 
+                goalpost_statistics_data,
+                statistics_data,
+                heatmap_data
+            FROM 
+                public.statistics_cache
+            WHERE 
+                cache_type = 'club'
+                AND club_id = $1
+            ORDER BY 
+                created_at DESC
+            LIMIT 10
         `;
 
-        let result: any = null;
-        let queryError: any = null;
-        
-        // Try to find the table in different schemas if it doesn't exist in the specified schema
-        try {
-            const query = buildQuery(schema, tableName);
-            result = await smoV1Pool.query(query, [clubIdNum]);
-        } catch (tableError: any) {
-            queryError = tableError;
-            // If table doesn't exist, try to find it in other common schemas
-            if (tableError.message && tableError.message.includes('does not exist')) {
-                console.error(`Table ${schema}.${tableName} not found. Attempting to find table...`);
-                
-                // Try common schema names
-                const schemasToTry = ['public', 'smo_v1', 'smo', 'statistics'];
-                
-                for (const trySchema of schemasToTry) {
-                    if (trySchema === schema) continue; // Skip the one we already tried
-                    
-                    try {
-                        const tryQuery = buildQuery(trySchema, tableName);
-                        result = await smoV1Pool.query(tryQuery, [clubIdNum]);
-                        console.log(`Found table in schema: ${trySchema}`);
-                        queryError = null;
-                        break;
-                    } catch (err: any) {
-                        // Continue to next schema
-                        continue;
-                    }
-                }
-                
-                // If still not found, try without schema qualification (default schema search path)
-                if (!result) {
-                    try {
-                        const noSchemaQuery = `
-                            SELECT
-                                action_type,
-                                heatmap_data->'Defensive' AS defensive_json
-                            FROM ${tableName}
-                            WHERE cache_type = 'club'
-                              AND club_id = $1
-                        `;
-                        result = await smoV1Pool.query(noSchemaQuery, [clubIdNum]);
-                        console.log(`Found table without schema qualification`);
-                        queryError = null;
-                    } catch (err: any) {
-                        // Last attempt: try to list available tables
-                        const listTablesQuery = `
-                            SELECT table_schema, table_name 
-                            FROM information_schema.tables 
-                            WHERE table_name LIKE '%statistic%' OR table_name LIKE '%cache%'
-                            ORDER BY table_schema, table_name
-                        `;
-                        const tablesResult = await smoV1Pool.query(listTablesQuery);
-                        
-                        return res.status(500).json({ 
-                            status: "error", 
-                            message: `Table '${tableName}' not found in schema '${schema}' or common schemas.`,
-                            error: tableError.message,
-                            availableTables: tablesResult.rows.length > 0 ? tablesResult.rows : "No matching tables found. Please check your database connection and table name."
-                        });
-                    }
-                }
-            } else {
-                throw tableError;
-            }
-        }
-        
-        // If we still don't have a result, throw the original error
-        if (!result && queryError) {
-            throw queryError;
-        }
+        const result = await smoV1Pool.query(query, [clubIdNum]);
 
         if (result.rows.length === 0) {
             return res.status(404).json({ 
@@ -305,29 +238,32 @@ export const getClubStatistics: RequestHandler = async (req, res) => {
             });
         }
 
+        // Helper function to parse JSON
+        const parseJson = (jsonData: any) => {
+            if (!jsonData) return null;
+            try {
+                // If it's already a JSON object, use it directly
+                if (typeof jsonData === 'object') {
+                    return jsonData;
+                } else if (typeof jsonData === 'string') {
+                    // Parse the JSON string (it might be double-encoded)
+                    return JSON.parse(jsonData);
+                }
+            } catch (parseError) {
+                console.warn(`Failed to parse JSON:`, parseError);
+                return jsonData; // Return as-is if parsing fails
+            }
+            return null;
+        };
+
         // Parse JSON strings and format the response
         const formattedData = result.rows.map((row: any) => {
-            let defensiveJson = null;
-            
-            // Parse the defensive_json if it's a string
-            if (row.defensive_json) {
-                try {
-                    // If it's already a JSON object, use it directly
-                    if (typeof row.defensive_json === 'object') {
-                        defensiveJson = row.defensive_json;
-                    } else if (typeof row.defensive_json === 'string') {
-                        // Parse the JSON string (it might be double-encoded)
-                        defensiveJson = JSON.parse(row.defensive_json);
-                    }
-                } catch (parseError) {
-                    console.warn(`Failed to parse defensive_json for action_type ${row.action_type}:`, parseError);
-                    defensiveJson = row.defensive_json; // Return as-is if parsing fails
-                }
-            }
-            
             return {
                 action_type: row.action_type,
-                defensive_json: defensiveJson
+                donut_chart_data: parseJson(row.donut_chart_data),
+                goalpost_statistics_data: parseJson(row.goalpost_statistics_data),
+                statistics_data: parseJson(row.statistics_data),
+                heatmap_data: parseJson(row.heatmap_data)
             };
         });
 
