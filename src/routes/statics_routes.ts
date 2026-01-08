@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getPlayerStatistics } from "../controllers/statics_controller";
+import { getPlayerStatistics, getClubStatistics } from "../controllers/statics_controller";
 import { authenticate } from "../middleware/authenticate";
 
 const router = Router();
@@ -104,5 +104,7 @@ const router = Router();
  */
 router.get("/player", authenticate, getPlayerStatistics);
 
+// get club statistics
+router.get("/club/:club_id", authenticate, getClubStatistics);
 export default router;
 
