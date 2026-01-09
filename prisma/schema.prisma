@@ -142,17 +142,16 @@ model PlayerProfile {
   strongFoot      String?
   weight          Decimal?         @db.Decimal(5, 2)
   playerId        Int?
-  profileType     String?
   thumbIconUrl    String?
   thumbNormalUrl  String?
   thumbProfileUrl String?
   thumbUrl        String?
+  profileType     String?          @db.VarChar(50)
   claimRequests   ClaimRequest[]
   clubMemberships ClubMembership[]
   matchPlayers    MatchPlayer[]
   owner           User?            @relation(fields: [ownerId], references: [id])
-  visitsReceived  ProfileVisit[]   @relation("VisitedProfiles")
-  visitsMade      ProfileVisit[]   @relation("VisitorProfiles")
+  visitedAsProfile ProfileVisit[]
 
   @@unique([firstName, lastName, dateOfBirth, country])
   @@map("player_profiles")
@@ -177,23 +176,18 @@ model Club {
   name            String
   country         String
   logoUrl         String?
-
-  // Legacy fields from old platform
-  clubId      Int?      // Legacy group_id from old platform
-  description String?
-  memberCount Int?
-  viewCount   Int?
-  modifiedAt  DateTime?
-
-  // Logo image URLs (from media_files)
-  thumbUrl        String?
-  thumbProfileUrl String?
-  thumbNormalUrl  String?
-  thumbIconUrl    String?
-
   status          ClaimStatus      @default(UNCLAIMED)
   ownerUserId     String?
   createdAt       DateTime         @default(now())
+  clubId          Int?
+  description     String?
+  memberCount     Int?
+  modifiedAt      DateTime?
+  thumbIconUrl    String?
+  thumbNormalUrl  String?
+  thumbProfileUrl String?
+  thumbUrl        String?
+  viewCount       Int?
   claimRequests   ClaimRequest[]
   clubMemberships ClubMembership[]
   owner           User?            @relation(fields: [ownerUserId], references: [id])
@@ -224,16 +218,14 @@ model ClaimRequest {
 }
 
 model ProfileVisit {
-  id                String        @id @default(uuid())
-  visitedProfileId  String        // The profile that was visited
-  visitorUserId     String        // The user who visited (from JWT token)
-  visitorProfileId  String?       // The visitor's player profile ID (if they have one)
-  visitorProfileType String?      // Football Player, Scout, Agent, Coach, etc.
-  visitedAt         DateTime      @default(now())
-  
-  visitedProfile    PlayerProfile @relation("VisitedProfiles", fields: [visitedProfileId], references: [id])
-  visitor           User          @relation(fields: [visitorUserId], references: [id])
-  visitorProfile    PlayerProfile? @relation("VisitorProfiles", fields: [visitorProfileId], references: [id])
+  id                 String        @id @default(uuid())
+  visitedProfileId   String
+  visitorUserId      String
+  visitorProfileId   String?
+  visitorProfileType String?       @db.VarChar(50)
+  visitedAt          DateTime      @default(now())
+  visitor            User          @relation(fields: [visitorUserId], references: [id])
+  visitorProfile     PlayerProfile? @relation(fields: [visitorProfileId], references: [id])
 
   @@index([visitedProfileId, visitedAt])
   @@index([visitorUserId])
@@ -317,6 +309,75 @@ model users_v2 {
   qualified_agent   Int?      @db.SmallInt
   qualified_coach   Int?      @db.SmallInt
   analyst           Int?      @db.SmallInt
+}
+
+model smo_match {
+  id                        Int       @id @default(autoincrement())
+  match_id                  Int?      @unique
+  event_id                  Int?
+  user_id                   Int?
+  my_team                   String?   @db.VarChar(255)
+  opponent_team             String?   @db.VarChar(255)
+  match_date_time           DateTime? @db.Timestamp(6)
+  competition_name          String?   @db.VarChar(255)
+  venue                     String?   @db.VarChar(255)
+  video_url                 String?
+  youtube_link              String?
+  home_score                Int?
+  away_score                Int?
+  team_formation            String?   @db.VarChar(50)
+  opponent_formation        String?   @db.VarChar(50)
+  winner                    String?   @db.VarChar(255)
+  location                  String?   @db.VarChar(255)
+  first_half_start          String?   @db.VarChar(50)
+  first_half_end            String?   @db.VarChar(50)
+  second_half_start         String?   @db.VarChar(50)
+  second_half_end           String?   @db.VarChar(50)
+  my_team_lineup            Json?
+  opponent_team_lineup      Json?
+  my_team_substitutes       Json?
+  opponent_team_substitutes Json?
+  raw_data                  Json?
+  created_at                DateTime? @default(now()) @db.Timestamp(6)
+  updated_at                DateTime? @default(now()) @db.Timestamp(6)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model statistics_cache {
+  id                       BigInt    @id @default(autoincrement())
+  cache_type               String    @db.VarChar(20)
+  match_id                 BigInt?
+  player_id                BigInt?
+  club_id                  BigInt?
+  event_id                 BigInt?
+  user_id                  BigInt?
+  match_name               String?   @db.VarChar(255)
+  team_group               String?   @db.VarChar(100)
+  action_type              String?   @db.VarChar(50)
+  match_count_flag         Int?      @default(0)
+  statistics_data          Json      @default("{}")
+  dashboard_title          String?   @db.VarChar(255)
+  top_formations           String?
+  average_statistics       Json?
+  heatmap_data             Json?
+  donut_chart_data         Json?
+  player_statistics_data   Json?
+  goalpost_statistics_data Json?
+  line_chart_attempts      Json?
+  line_chart_success       Json?
+  line_chart_failed        Json?
+  line_chart_key_passes    Json?
+  line_chart_assists       Json?
+  status                   String?   @default("active") @db.VarChar(20)
+  created_at               DateTime? @default(now()) @db.Timestamp(6)
+  updated_at               DateTime? @default(now()) @db.Timestamp(6)
+
+  @@index([statistics_data], map: "idx_stats_cache_data_gin", type: Gin)
+  @@index([cache_type], map: "idx_stats_cache_type")
+  @@index([cache_type, club_id], map: "idx_stats_cache_type_club")
+  @@index([cache_type, match_id], map: "idx_stats_cache_type_match")
+  @@index([cache_type, player_id], map: "idx_stats_cache_type_player")
+  @@index([cache_type, user_id], map: "idx_stats_cache_type_user")
 }
 
 enum MatchStatus {

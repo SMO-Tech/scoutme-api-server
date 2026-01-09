@@ -2,10 +2,14 @@ import { Router } from "express";
 import { authenticate } from "../middleware/authenticate";
 import { validateSchema } from "../middleware/validate";
 import { createMatchSchema } from "../validators/matchValidators";
-import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis } from "../controllers/matchController";
+import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis , legacyMatchAnalysis, legacyMatchInfo} from "../controllers/matchController";
 
 
 const router = Router();
+
+// legacy match analysis
+router.get("/legacy-match-info", authenticate, legacyMatchInfo);
+router.get("/legacy-match-analysis/:match_id", authenticate, legacyMatchAnalysis);
 
 /**
  * @swagger
@@ -203,5 +207,6 @@ router.get("/all-match", authenticate, allMatch); //get all match
  *         description: Server error
  */
 router.get("/:matchId", authenticate, getMatchAnalysis); // get match analysis by id
+
 
 export default router;
