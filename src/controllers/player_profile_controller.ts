@@ -618,3 +618,42 @@ export const getProfileVisitAnalytics = async (req : Request, res : Response) =>
         });
     }
 };
+
+export const getMyProfile = async (req : Request, res : Response) => {
+    try {
+        if (!req.user || !req.user.uid) {
+            return res.status(401).json({status: "error", message: "Authentication required"});
+        }
+        console.log("req.user", req.user);
+        const user = await prisma.user.findUnique({where: {id: req.user.uid}});
+        console.log("user", user);
+        if (!user) {
+            return res.status(404).json({status: "error", message: "User not found"});
+        }
+
+        if (!user.player_id) {
+            return res.status(404).json({status: "error", message: "User does not have a linked player profile"});
+        }
+
+        // Use playerId (Int) to find PlayerProfile, not id (String)
+        const playerProfile = await prisma.playerProfile.findFirst({
+            where: {ownerId: user.id}
+        });
+
+        if (!playerProfile) {
+            return res.status(404).json({status: "error", message: "Player profile not found for this user"});
+        }
+
+        res.status(200).json({
+            status: "success", 
+            message: "Player profile fetched successfully", 
+            data: playerProfile
+        });
+    } catch (error : any) {
+        res.status(500).json({
+            status: "error", 
+            message: "Something went wrong", 
+            error: error.message || "Something went wrong"
+        });
+    }
+};
