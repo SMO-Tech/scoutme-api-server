@@ -517,7 +517,7 @@ export const legacyMatchInfo: RequestHandler = async (
           year: 'numeric'
         })
         : null;
-
+        
       // Determine if Home or Away (assuming my_team is home if location/venue matches)
       const isHome = match.location?.toLowerCase().includes('home') ||
         match.venue?.toLowerCase().includes(match.my_team?.toLowerCase() || '');

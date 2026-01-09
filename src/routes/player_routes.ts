@@ -5,6 +5,7 @@ import {
   searchPlayerProfiles,
   updatePlayerProfile,
   getProfileVisitAnalytics,
+  getMyProfile,
 } from "../controllers/player_profile_controller";
 import { authenticate } from "../middleware/authenticate";
 
@@ -60,6 +61,7 @@ router.get("/", authenticate, listPlayerProfiles); // list all player profiles
  */
 router.get("/search", authenticate, searchPlayerProfiles); // search player profiles by parameters
 
+router.get("/me", authenticate, getMyProfile);
 /**
  * @swagger
  * /player/{id}:
