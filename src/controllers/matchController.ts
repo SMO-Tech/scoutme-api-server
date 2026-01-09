@@ -432,6 +432,8 @@ export const legacyMatchInfo: RequestHandler = async (
         player_id: true,
         name: true,
         email: true,
+        photoUrl: true,
+        id: true,
       },
     }) : [];
 
@@ -526,6 +528,8 @@ export const legacyMatchInfo: RequestHandler = async (
         user: {
           name: userMap.get(match.user_id)?.name,
           email: userMap.get(match.user_id)?.email,
+          userId: userMap.get(match.user_id)?.id,
+          photoUrl: userMap.get(match.user_id)?.photoUrl,
         },
         teams: {
           home: match.my_team,
