@@ -352,11 +352,13 @@ export const getMatchAnalysis: RequestHandler = async (
         },
       },
     });
+    console.log(matchInfo)
 
     if (!matchInfo) return res.status(400).json({ error: "match not found!" });
 
     return res.status(200).json({
       message: "Match analysis successfully fetched!",
+      videoUrl: matchInfo.videoUrl,
       data: matchInfo.result?.rawAiOutput ?? null,
     });
   } catch (e: any) {
