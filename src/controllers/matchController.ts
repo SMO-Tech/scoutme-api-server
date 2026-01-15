@@ -3,7 +3,6 @@ import { RequestMatchAnalysisBody } from "../@types";
 import { prisma } from "../utils/db";
 import { MatchStatus, MatchLevel } from "@prisma/client";
 
-
 export const createMatchRequest: RequestHandler = async (
   req: Request,
   res: Response
@@ -134,7 +133,7 @@ export const createMatchRequest: RequestHandler = async (
     // }
 
     res.status(201).json({
-      "status": "success",
+      status: "success",
       message: "Match request created successfully!",
       data: {
         matchId: match.id,
@@ -142,7 +141,7 @@ export const createMatchRequest: RequestHandler = async (
     });
   } catch (e: any) {
     res.status(500).json({
-      "status": "error",
+      status: "error",
       message: e.message || "Something went wrong",
     });
   }
@@ -187,9 +186,9 @@ export const allmatchOfUser: RequestHandler = async (
 };
 
 /**
- * Public endpoint to fetch a list of all matches on the platform, 
+ * Public endpoint to fetch a list of all matches on the platform,
  * regardless of the user who requested them.
- * * NOTE: The user check (uid, user validation) is kept but is NOT used 
+ * * NOTE: The user check (uid, user validation) is kept but is NOT used
  * for filtering the matches, only for logging/context if needed.
  */
 export const allMatch: RequestHandler = async (req: Request, res: Response) => {
@@ -221,7 +220,7 @@ export const allMatch: RequestHandler = async (req: Request, res: Response) => {
           select: {
             homeScore: true,
             awayScore: true,
-          }
+          },
         },
         // Fetch the clubs involved (Home and Away names)
         matchClubs: {
@@ -231,15 +230,15 @@ export const allMatch: RequestHandler = async (req: Request, res: Response) => {
             jerseyColor: true,
             // Fetch the canonical logo if the club is linked
             club: {
-              select: { logoUrl: true }
-            }
-          }
+              select: { logoUrl: true },
+            },
+          },
         },
         // Fetch the user who uploaded the match
         user: {
-          select: { name: true }
-        }
-      }
+          select: { name: true },
+        },
+      },
     });
 
     // 4. Get Total Count
@@ -256,7 +255,6 @@ export const allMatch: RequestHandler = async (req: Request, res: Response) => {
       },
       data: matches,
     });
-
   } catch (e: any) {
     console.error("Error fetching all matches:", e);
     res.status(500).json({ error: e.message || "Something went wrong" });
@@ -345,7 +343,8 @@ export const getMatchAnalysis: RequestHandler = async (
 
     const matchInfo = await prisma.match.findUnique({
       where: { id: matchId },
-      include: {
+      select: {
+        videoUrl: true,
         result: {
           select: {
             rawAiOutput: true,
@@ -353,6 +352,7 @@ export const getMatchAnalysis: RequestHandler = async (
         },
       },
     });
+
     if (!matchInfo) return res.status(400).json({ error: "match not found!" });
 
     return res.status(200).json({
@@ -381,7 +381,7 @@ export const legacyMatchInfo: RequestHandler = async (
       take: limit,
       orderBy: [
         {
-          match_date_time: 'desc', // Latest dates first, nulls last (default behavior)
+          match_date_time: "desc", // Latest dates first, nulls last (default behavior)
         },
         // {
         //   id: 'desc', // Secondary sort by ID for consistent ordering when dates are equal/null
@@ -415,49 +415,57 @@ export const legacyMatchInfo: RequestHandler = async (
     });
 
     // Get unique user_ids (filter out nulls)
-    const userIds: number[] = Array.from(new Set(
-      legacyMatches
-        .map((m: any) => m.user_id as number | null)
-        .filter((id: number | null): id is number => id !== null && typeof id === 'number')
-    ));
+    const userIds: number[] = Array.from(
+      new Set(
+        legacyMatches
+          .map((m: any) => m.user_id as number | null)
+          .filter(
+            (id: number | null): id is number =>
+              id !== null && typeof id === "number"
+          )
+      )
+    );
 
     // Fetch all users in one query
-    const users = userIds.length > 0 ? await prisma.user.findMany({
-      where: {
-        player_id: {
-          in: userIds,
-        },
-      },
-      select: {
-        player_id: true,
-        name: true,
-        email: true,
-        photoUrl: true,
-        id: true,
-      },
-    }) : [];
+    const users =
+      userIds.length > 0
+        ? await prisma.user.findMany({
+            where: {
+              player_id: {
+                in: userIds,
+              },
+            },
+            select: {
+              player_id: true,
+              name: true,
+              email: true,
+              photoUrl: true,
+              id: true,
+            },
+          })
+        : [];
 
     // Create a map for quick lookup: user_id -> user
-    const userMap = new Map(users.map(user => [user.player_id, user]));
+    const userMap = new Map(users.map((user) => [user.player_id, user]));
 
     // Try to get total count, but don't fail if it times out
     let totalMatches = legacyMatches.length; // Default to current page count
     try {
-      totalMatches = await Promise.race([
+      totalMatches = (await Promise.race([
         prisma.smo_match.count({}),
         new Promise<number>((_, reject) =>
-          setTimeout(() => reject(new Error('Count query timeout')), 5000)
-        )
-      ]) as number;
+          setTimeout(() => reject(new Error("Count query timeout")), 5000)
+        ),
+      ])) as number;
     } catch (countError: any) {
       // If count fails, estimate based on current results
       // If we got a full page, there might be more
       if (legacyMatches.length === limit) {
-        totalMatches = (page * limit) + 1; // Estimate: at least one more page
+        totalMatches = page * limit + 1; // Estimate: at least one more page
       } else {
         totalMatches = skip + legacyMatches.length; // Exact count if last page
       }
-      console.warn('Count query failed, using estimate:', countError.message);
+      console.warn("Count query failed, using estimate:", countError.message);
     }
 
     // Sort matches to ensure latest dates are on top, null dates at bottom
@@ -465,7 +473,10 @@ export const legacyMatchInfo: RequestHandler = async (
     const sortedMatches = [...legacyMatches].sort((a: any, b: any) => {
       // If both have dates, sort by date descending (newest first)
       if (a.match_date_time && b.match_date_time) {
-        return new Date(b.match_date_time).getTime() - new Date(a.match_date_time).getTime();
+        return (
+          new Date(b.match_date_time).getTime() -
+          new Date(a.match_date_time).getTime()
+        );
       }
       // If only a has a date, it comes first
       if (a.match_date_time && !b.match_date_time) return -1;
@@ -479,23 +490,31 @@ export const legacyMatchInfo: RequestHandler = async (
       // Calculate duration in minutes
       let duration = 0;
       if (match.first_half_start && match.first_half_end) {
-        const firstHalf = parseTimeToMinutes(match.first_half_end) - parseTimeToMinutes(match.first_half_start);
+        const firstHalf =
+          parseTimeToMinutes(match.first_half_end) -
+          parseTimeToMinutes(match.first_half_start);
         duration += firstHalf || 0;
       }
       if (match.second_half_start && match.second_half_end) {
-        const secondHalf = parseTimeToMinutes(match.second_half_end) - parseTimeToMinutes(match.second_half_start);
+        const secondHalf =
+          parseTimeToMinutes(match.second_half_end) -
+          parseTimeToMinutes(match.second_half_start);
         duration += secondHalf || 0;
       }
 
       // Count players in starting lineup
       const startingPlayersCount = Array.isArray(match.my_team_lineup)
         ? match.my_team_lineup.length
-        : (match.my_team_lineup ? Object.keys(match.my_team_lineup).length : 0);
+        : match.my_team_lineup
+        ? Object.keys(match.my_team_lineup).length
+        : 0;
 
       // Count substitutes
       const substitutesCount = Array.isArray(match.my_team_substitutes)
         ? match.my_team_substitutes.length
-        : (match.my_team_substitutes ? Object.keys(match.my_team_substitutes).length : 0);
+        : match.my_team_substitutes
+        ? Object.keys(match.my_team_substitutes).length
+        : 0;
 
       // Determine result
       let result = "Draw";
@@ -511,16 +530,17 @@ export const legacyMatchInfo: RequestHandler = async (
 
       // Format date
       const matchDate = match.match_date_time
-        ? new Date(match.match_date_time).toLocaleDateString('en-US', {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
-        })
+        ? new Date(match.match_date_time).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
         : null;
-        
+
       // Determine if Home or Away (assuming my_team is home if location/venue matches)
-      const isHome = match.location?.toLowerCase().includes('home') ||
-        match.venue?.toLowerCase().includes(match.my_team?.toLowerCase() || '');
+      const isHome =
+        match.location?.toLowerCase().includes("home") ||
+        match.venue?.toLowerCase().includes(match.my_team?.toLowerCase() || "");
 
       return {
         id: match.id,
@@ -534,7 +554,9 @@ export const legacyMatchInfo: RequestHandler = async (
         teams: {
           home: match.my_team,
           away: match.opponent_team,
-          display: `${match.my_team || 'Team 1'} VS ${match.opponent_team || 'Team 2'}`,
+          display: `${match.my_team || "Team 1"} VS ${
+            match.opponent_team || "Team 2"
+          }`,
         },
         score: {
           home: match.home_score ?? 0,
@@ -547,14 +569,19 @@ export const legacyMatchInfo: RequestHandler = async (
         formation: {
           home: match.team_formation,
           away: match.opponent_formation,
-          display: `${match.team_formation || 'N/A'} vs ${match.opponent_formation || 'N/A'}`,
+          display: `${match.team_formation || "N/A"} vs ${
+            match.opponent_formation || "N/A"
+          }`,
         },
         players: {
           starting: startingPlayersCount,
           substitutes: substitutesCount,
           display: `${startingPlayersCount} starting • ${substitutesCount} subs`,
         },
-        duration: duration > 0 ? `${duration}'${duration > 90 ? ' (with extra time)' : ''}` : null,
+        duration:
+          duration > 0
+            ? `${duration}'${duration > 90 ? " (with extra time)" : ""}`
+            : null,
       };
     });
 
@@ -567,25 +594,28 @@ export const legacyMatchInfo: RequestHandler = async (
         totalPages: Math.ceil(totalMatches / limit),
         totalItems: totalMatches,
       },
-      data: formattedJson
+      data: formattedJson,
     });
   } catch (e: any) {
     console.error("Error in legacyMatchInfo:", e);
 
     // Check if it's a database connection error
-    if (e.message?.includes("Can't reach database server") ||
+    if (
+      e.message?.includes("Can't reach database server") ||
       e.message?.includes("connection") ||
-      e.code === "P1001") {
+      e.code === "P1001"
+    ) {
       return res.status(503).json({
         status: "error",
-        error: "Database connection error. Please check your database server is running and accessible.",
-        message: e.message || "Database unavailable"
+        error:
+          "Database connection error. Please check your database server is running and accessible.",
+        message: e.message || "Database unavailable",
       });
     }
 
     res.status(500).json({
       status: "error",
-      error: e.message || "Something went wrong"
+      error: e.message || "Something went wrong",
     });
   }
 };
@@ -608,23 +638,28 @@ export const legacyMatchAnalysis: RequestHandler = async (
 ) => {
   try {
     // Get match_id from query params or route params
-    const matchIdParam = req.query.match_id || req.params.match_id || req.query.matchId || req.params.matchId;
-    
+    const matchIdParam =
+      req.query.match_id ||
+      req.params.match_id ||
+      req.query.matchId ||
+      req.params.matchId;
+
     if (!matchIdParam) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         status: "error",
-        error: "match_id is required. Please provide match_id as query parameter or route parameter." 
+        error:
+          "match_id is required. Please provide match_id as query parameter or route parameter.",
       });
     }
 
     // Convert to string first, then to number
     const matchIdStr = String(matchIdParam);
     const matchIdNum = parseInt(matchIdStr, 10);
-    
+
     if (isNaN(matchIdNum)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         status: "error",
-        error: "Invalid match_id. Must be a valid number." 
+        error: "Invalid match_id. Must be a valid number.",
       });
     }
 
@@ -665,9 +700,9 @@ export const legacyMatchAnalysis: RequestHandler = async (
 
     // Check if match exists
     if (!match) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         status: "error",
-        error: `Match with match_id ${matchIdNum} not found.` 
+        error: `Match with match_id ${matchIdNum} not found.`,
       });
     }
 
@@ -735,14 +770,12 @@ export const legacyMatchAnalysis: RequestHandler = async (
       },
     };
 
-    res.json({ 
-      status: "success", 
-      message: "Legacy match analysis fetched successfully", 
-      data: formattedMatch 
+    res.json({
+      status: "success",
+      message: "Legacy match analysis fetched successfully",
+      data: formattedMatch,
     });
   } catch (e: any) {
     res.status(500).json({ error: e.message || "Something went wrong" });
   }
 };
-
-
