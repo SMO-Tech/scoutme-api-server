@@ -6,379 +6,7 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String          @id
-  name          String
-  email         String          @unique
-  phone         String?
-  photoUrl      String?
-  createdAt     DateTime        @default(now())
-  player_id     Int             @unique(map: "idx_users_player_id_unique") @default(autoincrement())
-  claimRequests ClaimRequest[]
-  ownedClubs    Club[]
-  matches       Match[]
-  ownedPlayers  PlayerProfile[]
-  profileVisits ProfileVisit[]
-
-  @@map("users")
-}
-
-model Match {
-  id              String        @id @default(uuid())
-  userId          String
-  videoUrl        String
-  lineUpImage     String?
-  status          MatchStatus   @default(PENDING)
-  level           MatchLevel
-  matchDate       DateTime?
-  competitionName String?
-  venue           String?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  matchClubs      MatchClub[]
-  matchPlayers    MatchPlayer[]
-  result          MatchResult?
-  user            User          @relation(fields: [userId], references: [id])
-
-  @@map("matches")
-}
-
-model MatchResult {
-  id             String             @id @default(uuid())
-  matchId        String             @unique
-  homeScore      Int
-  awayScore      Int
-  homePossession Int?
-  awayPossession Int?
-  homeShots      Int?
-  awayShots      Int?
-  rawAiOutput    Json?
-  createdAt      DateTime           @default(now())
-  playerStats    MatchPlayerStats[]
-  match          Match              @relation(fields: [matchId], references: [id])
-
-  @@map("match_results")
-}
-
-model MatchClub {
-  id          String        @id @default(uuid())
-  matchId     String
-  clubId      String?
-  name        String
-  country     String
-  isUsersTeam Boolean
-  jerseyColor String?
-  createdAt   DateTime      @default(now())
-  club        Club?         @relation(fields: [clubId], references: [id])
-  match       Match         @relation(fields: [matchId], references: [id])
-  players     MatchPlayer[]
-
-  @@unique([matchId, isUsersTeam])
-  @@map("match_clubs")
-}
-
-model MatchPlayer {
-  id              String            @id @default(uuid())
-  playerProfileId String
-  matchId         String
-  jerseyNumber    Int
-  position        String
-  isHomeTeam      Boolean           @default(true)
-  createdAt       DateTime          @default(now())
-  matchClubId     String
-  stats           MatchPlayerStats?
-  matchClub       MatchClub         @relation(fields: [matchClubId], references: [id])
-  match           Match             @relation(fields: [matchId], references: [id])
-  playerProfile   PlayerProfile     @relation(fields: [playerProfileId], references: [id])
-
-  @@unique([matchId, playerProfileId])
-  @@map("match_players")
-}
-
-model MatchPlayerStats {
-  id            String      @id @default(uuid())
-  matchPlayerId String      @unique
-  matchResultId String
-  goals         Int         @default(0)
-  assists       Int         @default(0)
-  shots         Int         @default(0)
-  shotsOnTarget Int         @default(0)
-  passes        Int         @default(0)
-  passAccuracy  Float?
-  tackles       Int         @default(0)
-  interceptions Int         @default(0)
-  fouls         Int         @default(0)
-  yellowCards   Int         @default(0)
-  redCards      Int         @default(0)
-  minutesPlayed Int?
-  matchPlayer   MatchPlayer @relation(fields: [matchPlayerId], references: [id])
-  matchResult   MatchResult @relation(fields: [matchResultId], references: [id])
-
-  @@map("match_player_stats")
-}
-
-model PlayerProfile {
-  id              String           @id @default(uuid())
-  firstName       String
-  lastName        String
-  dateOfBirth     DateTime?        @db.Date
-  country         String
-  avatar          String?
-  primaryPosition String
-  status          ClaimStatus      @default(UNCLAIMED)
-  ownerId         String?
-  createdAt       DateTime         @default(now())
-  agentName       String?
-  city            String?
-  club            String?
-  contractExpiry  DateTime?        @db.Date
-  gender          String?
-  height          Decimal?         @db.Decimal(5, 2)
-  language        String?
-  league          String?
-  monthSalary     String?
-  nationality     String?
-  state           String?
-  strongFoot      String?
-  weight          Decimal?         @db.Decimal(5, 2)
-  playerId        Int?
-  thumbIconUrl    String?
-  thumbNormalUrl  String?
-  thumbProfileUrl String?
-  thumbUrl        String?
-  profileType     String?          @db.VarChar(50)
-  claimRequests   ClaimRequest[]
-  clubMemberships ClubMembership[]
-  matchPlayers    MatchPlayer[]
-  owner           User?            @relation(fields: [ownerId], references: [id])
-  visitedAsProfile ProfileVisit[]
-
-  @@unique([firstName, lastName, dateOfBirth, country])
-  @@map("player_profiles")
-}
-
-model ClubMembership {
-  id              String        @id @default(uuid())
-  playerProfileId String
-  clubId          String
-  startDate       DateTime?     @db.Date
-  endDate         DateTime?     @db.Date
-  isCurrent       Boolean       @default(false)
-  createdAt       DateTime      @default(now())
-  club            Club          @relation(fields: [clubId], references: [id])
-  player          PlayerProfile @relation(fields: [playerProfileId], references: [id])
-
-  @@map("club_memberships")
-}
-
-model Club {
-  id              String           @id @default(uuid())
-  name            String
-  country         String
-  logoUrl         String?
-  status          ClaimStatus      @default(UNCLAIMED)
-  ownerUserId     String?
-  createdAt       DateTime         @default(now())
-  clubId          Int?
-  description     String?
-  memberCount     Int?
-  modifiedAt      DateTime?
-  thumbIconUrl    String?
-  thumbNormalUrl  String?
-  thumbProfileUrl String?
-  thumbUrl        String?
-  viewCount       Int?
-  claimRequests   ClaimRequest[]
-  clubMemberships ClubMembership[]
-  owner           User?            @relation(fields: [ownerUserId], references: [id])
-  matchClubs      MatchClub[]
-
-  @@unique([name, country])
-  @@map("clubs")
-}
-
-model ClaimRequest {
-  id              String         @id @default(uuid())
-  userId          String
-  playerId        String?
-  clubId          String?
-  type            ClaimType
-  status          ClaimStatus    @default(PENDING)
-  notes           String?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-  rejectionReason String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  club            Club?          @relation(fields: [clubId], references: [id])
-  player          PlayerProfile? @relation(fields: [playerId], references: [id])
-  user            User           @relation(fields: [userId], references: [id])
-
-  @@map("claim_requests")
-}
-
-model ProfileVisit {
-  id                 String        @id @default(uuid())
-  visitedProfileId   String
-  visitorUserId      String
-  visitorProfileId   String?
-  visitorProfileType String?       @db.VarChar(50)
-  visitedAt          DateTime      @default(now())
-  visitor            User          @relation(fields: [visitorUserId], references: [id])
-  visitorProfile     PlayerProfile? @relation(fields: [visitorProfileId], references: [id])
-
-  @@index([visitedProfileId, visitedAt])
-  @@index([visitorUserId])
-  @@index([visitedAt])
-  @@map("profile_visits")
-}
-
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
-model media_files {
-  file_id        Int?
-  parent_file_id Int?
-  type           String?   @db.VarChar(16)
-  parent_type    String?   @db.VarChar(32)
-  parent_id      Int?
-  user_id        Int?
-  creation_date  DateTime? @db.Timestamp(6)
-  modified_date  DateTime? @db.Timestamp(6)
-  service_id     Int?
-  storage_path   String?   @db.VarChar(255)
-  extension      String?   @db.VarChar(8)
-  name           String?   @db.VarChar(255)
-  mime_major     String?   @db.VarChar(64)
-  mime_minor     String?   @db.VarChar(64)
-  size           BigInt?
-  hash           String?   @db.VarChar(64)
-
-  @@ignore
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model players_info {
-  id              Int       @id @default(autoincrement())
-  player_id       Int       @unique
-  profile_type    String?   @db.VarChar(50)
-  first_name      String?   @db.VarChar(100)
-  last_name       String?   @db.VarChar(100)
-  gender          String?   @db.VarChar(20)
-  birthdate       DateTime? @db.Date
-  city            String?   @db.VarChar(100)
-  state           String?   @db.VarChar(100)
-  country         String?   @db.VarChar(100)
-  height          Decimal?  @db.Decimal(5, 2)
-  weight          Decimal?  @db.Decimal(5, 2)
-  position        String?   @db.VarChar(50)
-  monthly_salary  String?   @db.VarChar(50)
-  created_at      DateTime? @default(now()) @db.Timestamp(6)
-  strong_foot     String?   @db.VarChar(20)
-  nationality     String?   @db.VarChar(80)
-  contract_expiry DateTime? @db.Date
-  league          String?   @db.VarChar(255)
-  club            String?   @db.VarChar(255)
-  language        String?   @db.VarChar(100)
-  agent_name      String?   @db.VarChar(255)
-}
-
-model users_v2 {
-  id                Int       @id(map: "users_pkey1") @default(autoincrement())
-  user_id           Int?
-  phone             String?   @db.VarChar(20)
-  email             String?   @db.VarChar(128)
-  password          String?   @db.Char(32)
-  salt              String?   @db.Char(64)
-  full_name         String?   @db.VarChar(200)
-  photo_id          Int?
-  status            String?
-  status_date       DateTime? @db.Timestamp(6)
-  timezone          String?   @db.VarChar(64)
-  invites_used      Int?
-  verified          Int?      @db.SmallInt
-  creation_date     DateTime? @db.Timestamp(6)
-  creation_ip       String?
-  modified_date     DateTime? @db.Timestamp(6)
-  lastlogin_date    DateTime? @db.Timestamp(6)
-  lastlogin_ip      String?
-  updated_date      Int?
-  connections_count Int?      @db.SmallInt
-  view_count        Int?
-  user_referral     Int?
-  fraud             Int?      @db.SmallInt
-  qualified_scout   Int?      @db.SmallInt
-  qualified_agent   Int?      @db.SmallInt
-  qualified_coach   Int?      @db.SmallInt
-  analyst           Int?      @db.SmallInt
-}
-
-model smo_match {
-  id                        Int       @id @default(autoincrement())
-  match_id                  Int?      @unique
-  event_id                  Int?
-  user_id                   Int?
-  my_team                   String?   @db.VarChar(255)
-  opponent_team             String?   @db.VarChar(255)
-  match_date_time           DateTime? @db.Timestamp(6)
-  competition_name          String?   @db.VarChar(255)
-  venue                     String?   @db.VarChar(255)
-  video_url                 String?
-  youtube_link              String?
-  home_score                Int?
-  away_score                Int?
-  team_formation            String?   @db.VarChar(50)
-  opponent_formation        String?   @db.VarChar(50)
-  winner                    String?   @db.VarChar(255)
-  location                  String?   @db.VarChar(255)
-  first_half_start          String?   @db.VarChar(50)
-  first_half_end            String?   @db.VarChar(50)
-  second_half_start         String?   @db.VarChar(50)
-  second_half_end           String?   @db.VarChar(50)
-  my_team_lineup            Json?
-  opponent_team_lineup      Json?
-  my_team_substitutes       Json?
-  opponent_team_substitutes Json?
-  raw_data                  Json?
-  created_at                DateTime? @default(now()) @db.Timestamp(6)
-  updated_at                DateTime? @default(now()) @db.Timestamp(6)
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model statistics_cache {
-  id                       BigInt    @id @default(autoincrement())
-  cache_type               String    @db.VarChar(20)
-  match_id                 BigInt?
-  player_id                BigInt?
-  club_id                  BigInt?
-  event_id                 BigInt?
-  user_id                  BigInt?
-  match_name               String?   @db.VarChar(255)
-  team_group               String?   @db.VarChar(100)
-  action_type              String?   @db.VarChar(50)
-  match_count_flag         Int?      @default(0)
-  statistics_data          Json      @default("{}")
-  dashboard_title          String?   @db.VarChar(255)
-  top_formations           String?
-  average_statistics       Json?
-  heatmap_data             Json?
-  donut_chart_data         Json?
-  player_statistics_data   Json?
-  goalpost_statistics_data Json?
-  line_chart_attempts      Json?
-  line_chart_success       Json?
-  line_chart_failed        Json?
-  line_chart_key_passes    Json?
-  line_chart_assists       Json?
-  status                   String?   @default("active") @db.VarChar(20)
-  created_at               DateTime? @default(now()) @db.Timestamp(6)
-  updated_at               DateTime? @default(now()) @db.Timestamp(6)
-
-  @@index([statistics_data], map: "idx_stats_cache_data_gin", type: Gin)
-  @@index([cache_type], map: "idx_stats_cache_type")
-  @@index([cache_type, club_id], map: "idx_stats_cache_type_club")
-  @@index([cache_type, match_id], map: "idx_stats_cache_type_match")
-  @@index([cache_type, player_id], map: "idx_stats_cache_type_player")
-  @@index([cache_type, user_id], map: "idx_stats_cache_type_user")
-}
+// 2. ENUMS
 
 enum MatchStatus {
   PENDING
@@ -388,48 +16,100 @@ enum MatchStatus {
 }
 
 enum MatchLevel {
+  BEGINNER
+  INTERMEDIATE
   PROFESSIONAL
-  SEMI_PROFESSIONAL
-  ACADEMIC_TOP_TIER
-  ACADEMIC_AMATEUR
+  ACADEMY
   SUNDAY_LEAGUE
 }
 
-enum ClaimStatus {
-  UNCLAIMED
-  PENDING
-  VERIFIED
-}
-
-enum ClaimType {
-  PLAYER
-  CLUB
-}
-
 enum Gender {
-  Male
-  Female
-  Other
-  PreferNotToSay
+  MALE
+  FEMALE
+  MIXED
 }
 
-enum Position {
-  Goalkeeper
-  CentreBack
-  FullBack
-  WingBack
-  DefensiveMidfielder
-  CentralMidfielder
-  AttackingMidfielder
-  Winger
-  Striker
-  SecondStriker
+enum TransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
 }
 
-enum ProfileType {
-  Agent
-  Analyst
-  Coach
-  FootballPlayer
-  Scout
+// 3. MODELS
+
+model User {
+  id       String  @id //firebase UID will be saved here
+  email    String  @unique
+  name     String?
+  photoUrl String?
+  phone    String?
+
+  // BUSINESS
+  credits Int     @default(1) // 1 free match
+  isPro   Boolean @default(false)
+
+  // RELATIONS
+  matches      Match[]
+  transactions Transaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Match {
+  id String @id @default(uuid())
+
+  // OWNER
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // INPUT
+  videoUrl String
+  title    String @default("Untitled Analysis")
+
+  // METADATA (searchable, dashboard-friendly)
+  homeTeam String?
+  awayTeam String?
+
+  matchDate DateTime   @default(now())
+  location  String?
+  level     MatchLevel @default(INTERMEDIATE)
+  gender    Gender     @default(MALE)
+
+  // SYSTEM
+  status       MatchStatus @default(PENDING)
+  progress     Int         @default(0) // UI-only, best-effort
+  thumbnailUrl String?
+
+  // AI OUTPUT
+  analysisData    Json?
+  analysisVersion String @default("v1")
+
+  // METRICS
+  views Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // INDEXES
+  @@index([userId])
+  @@index([status])
+  @@index([level, gender, location])
+}
+
+model Transaction {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  // PAYMENT
+  amount       Int // stored in pennies (e.g. 1000 = £10.00)
+  currency     String @default("GBP")
+  creditsAdded Int    @default(1)
+
+  stripeId String?
+  status   TransactionStatus
+
+  createdAt DateTime @default(now())
 }

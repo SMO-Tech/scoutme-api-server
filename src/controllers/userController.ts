@@ -5,35 +5,43 @@ import { prisma } from "../utils/db";
 
 export const registerUser: RequestHandler = async (req, res) => {
   try {
-   
-    const { name, email, phone, photoUrl, UID } = req.body;
-    
-    //see if user exist
+    const { UID, email, name, phone, photoUrl } = req.body;
+
+    if (!UID || !email) {
+      return res.status(400).json({ message: "UID and email required" });
+    }
+
+    // Check by PRIMARY KEY (Firebase UID)
     const user = await prisma.user.findUnique({
-      where: {email}
+      where: { id: UID },
     });
 
-    if(user) return res.json({message: "User already registered"})
+    if (user) {
+      return res.status(200).json({
+        message: "User already registered",
+        data: user,
+      });
+    }
 
     const newUser = await prisma.user.create({
       data: {
-        name,
+        id: UID,
         email,
+        name,
         phone,
         photoUrl,
-        id:UID
       },
     });
 
-    res
-      .status(200)
-      .json({ message: "User registered successfully!", data: { newUser } });
+    return res.status(201).json({
+      message: "User registered successfully!",
+      data: newUser,
+    });
   } catch (e: any) {
-  
-    res.status(500).json({ error: e.message || "Something went wrong" });
- 
+    return res.status(500).json({ error: e.message || "Something went wrong" });
   }
 };
+
 
 export const testToken: RequestHandler = async (req, res) => {
   try {
