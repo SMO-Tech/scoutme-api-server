@@ -65,66 +65,55 @@ export const submitMatchAnalysis: RequestHandler = async (req, res) => {
   try {
     const { matchId } = req.params;
     
-    // VALIDATE INPUTS RUTHLESSLY
+    // 1. VALIDATE INPUTS
     if (!matchId?.trim()) {
-      return res.status(400).json({ error: "matchId is required and cannot be empty" });
+      return res.status(400).json({ error: "matchId is required" });
     }
 
-    // Handle both formats: { result: [...] } or raw array [...]
-    let result: any[];
+    // Determine data structure (Handle both raw array and object wrapper)
+    let finalJsonData: any;
     if (Array.isArray(req.body)) {
-      // If body is a raw array, use it directly
-      result = req.body;
+      finalJsonData = { events: req.body };
     } else if (req.body && Array.isArray(req.body.result)) {
-      // If body has a result property with an array, use that
-      result = req.body.result;
+      finalJsonData = req.body;
     } else {
       return res.status(400).json({ 
-        error: "Request body must be an array or an object with a 'result' array property" 
+        error: "Invalid body format. Expected array or object with 'result'." 
       });
     }
 
-    // Validate the result array
-    if (!result || result.length === 0) {
-      return res.status(400).json({ 
-        error: "result must be a non-empty array with proper structure" 
-      });
+    if (!finalJsonData) {
+      return res.status(400).json({ error: "No analysis data provided" });
     }
 
-    // 3. CHECK IF MATCH EXISTS FIRST
+    // 2. CHECK MATCH EXISTS
     const existingMatch = await prisma.match.findUnique({
       where: { id: matchId }
     });
 
     if (!existingMatch) {
-      return res.status(404).json({ error: "MatchRequest not found" });
+      return res.status(404).json({ error: "Match not found" });
     }
 
-    const analysis = await prisma.matchResult.upsert({
-      where: { 
-        matchId: matchId  // This determines if record exists
-      },
-      update: { 
-        rawAiOutput: result,    // If exists, update
-        // updatedAt: new Date()
-      },
-      create: { 
-        matchId: matchId,  // If doesn't exist, create
-        rawAiOutput: result,
-        homeScore: 0,
-        awayScore: 0
+    // 3. UPDATE DATA ONLY (No Status Change)
+    // We strictly only save the JSON blob. Status remains PENDING/PROCESSING.
+    const updatedMatch = await prisma.match.update({
+      where: { id: matchId },
+      data: {
+        analysisData: finalJsonData, 
+        // status: "COMPLETED", <--- REMOVED per your request
+        // progress: 100        <--- REMOVED per your request
       }
     });
     
-    
-    // 6. SUCCESS RESPONSE
-    return res.status(201).json({
-      message: "Match analysis submitted successfully",
-      id: analysis.id,
-      matchId: analysis.matchId
+    // 4. SUCCESS RESPONSE
+    return res.status(200).json({
+      message: "Analysis data saved successfully",
+      id: updatedMatch.id,
     });
 
   } catch (e: any) {
+    console.error("Submit Analysis Error:", e);
     return res.status(500).json({ error: e.message || "Something went wrong" });
   }
 };
