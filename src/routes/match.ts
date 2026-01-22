@@ -2,14 +2,10 @@ import { Router } from "express";
 import { authenticate } from "../middleware/authenticate";
 import { validateSchema } from "../middleware/validate";
 import { createMatchSchema } from "../validators/matchValidators";
-import { allMatch, allmatchOfUser, createMatchRequest, getMatchAnalysis , legacyMatchAnalysis, legacyMatchInfo} from "../controllers/matchController";
+import { allmatchOfUser, createMatchRequest,  } from "../controllers/matchController";
 
 
 const router = Router();
-
-// legacy match analysis
-router.get("/legacy-match-info", authenticate, legacyMatchInfo);
-router.get("/legacy-match-analysis/:match_id", authenticate, legacyMatchAnalysis);
 
 /**
  * @swagger
@@ -95,48 +91,6 @@ router.post(
   createMatchRequest
 );
 
-/**
- * @swagger
- * /match/request:
- *   post:
- *     summary: Create a new match request
- *     tags:
- *       - Match
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               videoUrl:
- *                 type: string
- *                 format: uri
- *     responses:
- *       201:
- *         description: Match created successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 matchId:
- *                   type: string
- *       400:
- *         description: User not found or validation error
- *       500:
- *         description: Server error
- */
-router.post(
-  "/request",
-  authenticate,
-  validateSchema(createMatchSchema),
-  createMatchRequest
-);
 
 /**
  * @swagger
@@ -180,7 +134,7 @@ router.get("/", authenticate, allmatchOfUser); //get all match of user
  *       500:
  *         description: Server error
  */
-router.get("/all-match", authenticate, allMatch); //get all match 
+// router.get("/all-match", authenticate, allMatch); //get all match 
 /**
  * @swagger
  * /match/{matchId}:
@@ -206,7 +160,7 @@ router.get("/all-match", authenticate, allMatch); //get all match
  *       500:
  *         description: Server error
  */
-router.get("/:matchId", authenticate, getMatchAnalysis); // get match analysis by id
+// router.get("/:matchId", authenticate, getMatchAnalysis); // get match analysis by id
 
 
 export default router;
