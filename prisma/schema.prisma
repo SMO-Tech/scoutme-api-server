@@ -40,7 +40,7 @@ enum TransactionStatus {
 model User {
   id       String  @id //firebase UID will be saved here
   email    String  @unique
-  name     String?
+  name     String
   photoUrl String?
   phone    String?
 
@@ -57,9 +57,9 @@ model User {
 }
 
 model Match {
-  id String @id @default(uuid())
+  id String @id@default(uuid())
 
-  // OWNER
+  // OWNE
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -85,8 +85,6 @@ model Match {
   analysisData    Json?
   analysisVersion String @default("v1")
 
-  // METRICS
-  views Int @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
