@@ -3,7 +3,6 @@ import { Request, RequestHandler, Response } from "express";
 import { prisma } from "../utils/db";
 import { MatchLevel } from "@prisma/client";
 
-
 // Define body interface if not already defined
 interface RequestMatchAnalysisBody {
   videoUrl: string;
@@ -13,7 +12,10 @@ interface RequestMatchAnalysisBody {
   focusHint?: string;
 }
 
-export const createMatchRequest: RequestHandler = async (req, res): Promise<void> => {
+export const createMatchRequest: RequestHandler = async (
+  req,
+  res,
+): Promise<void> => {
   try {
     // 1. Get the Firebase UID from the auth middleware
     const { uid } = (req as any).user;
@@ -39,7 +41,6 @@ export const createMatchRequest: RequestHandler = async (req, res): Promise<void
         throw new Error("Insufficient credits");
       }
 
-  
       // B. Create the Match
       const newMatch = await tx.match.create({
         data: {
@@ -47,8 +48,8 @@ export const createMatchRequest: RequestHandler = async (req, res): Promise<void
           videoUrl: videoUrl,
           homeTeam: homeTeam,
           awayTeam: awayTeam,
-          matchLevel: matchLevel ,
-          focusHint: focusHint || null, 
+          matchLevel: matchLevel,
+          focusHint: focusHint || null,
           status: "PENDING",
           title: `${homeTeam} vs ${awayTeam}`,
         },
@@ -129,5 +130,76 @@ export const allmatchOfUser: RequestHandler = async (
   }
 };
 
+export const getMatchAnalysis: RequestHandler = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { matchId } = req.params;
+    const userId = (req as any).user?.id; // injected by auth middleware
 
+    if (!matchId) {
+      return res.status(400).json({ message: "Match ID is required" });
+    }
 
+    if (!userId) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const match = await prisma.match.findFirst({
+      where: {
+        id: matchId,
+        userId, 
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            photoUrl: true,
+          },
+        },
+      },
+    });
+
+    if (!match) {
+      return res.status(404).json({
+        message: "Match not found or access denied",
+      });
+    }
+
+    return res.status(200).json({
+      message: "Match analysis fetched successfully",
+      data: {
+        id: match.id,
+        title: match.title,
+        videoUrl: match.videoUrl,
+        status: match.status,
+
+        // Metadata
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        matchDate: match.matchDate,
+        location: match.location,
+        level: match.matchLevel,
+        gender: match.gender,
+
+        // AI Output
+        analysisData: match.analysisData,
+        analysisVersion: match.analysisVersion,
+
+        // Ownership
+        owner: match.user,
+
+        createdAt: match.createdAt,
+        updatedAt: match.updatedAt,
+      },
+    });
+  } catch (error: any) {
+    console.error("getMatchAnalysis error:", error);
+    return res.status(500).json({
+      message: "Failed to fetch match analysis",
+    });
+  }
+};
