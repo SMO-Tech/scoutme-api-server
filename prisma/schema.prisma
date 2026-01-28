@@ -6,7 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-// 2. ENUMS
 
 enum MatchStatus {
   PENDING
@@ -57,34 +56,34 @@ model User {
 }
 
 model Match {
-  id String @id@default(uuid())
+  id String @id @default(uuid())
 
-  // OWNE
+  // OWNER
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // INPUT
-  videoUrl String
-  title    String @default("Untitled Analysis")
+  // --- USER INPUTS (From your Form) ---
+  videoUrl  String
+  homeTeam  String   // Changed to String (Required)
+  awayTeam  String   // Changed to String (Required)
+  matchLevel String  
+  
+  // Added for the new text area (Optional)
+  focusHint String?  @db.Text 
 
-  // METADATA (searchable, dashboard-friendly)
-  homeTeam String?
-  awayTeam String?
-
-  matchDate DateTime   @default(now())
+  title     String   @default("Untitled Analysis") 
+  matchDate DateTime @default(now())
+  
+  // Note: You aren't collecting these in the form yet, so they can stay optional/default
   location  String?
-  level     MatchLevel @default(INTERMEDIATE)
-  gender    Gender     @default(MALE)
+  gender    Gender      @default(MALE)
+  status    MatchStatus @default(PENDING)
 
-  // SYSTEM
-  status       MatchStatus @default(PENDING)
-  progress     Int         @default(0) // UI-only, best-effort
-  thumbnailUrl String?
+
 
   // AI OUTPUT
   analysisData    Json?
   analysisVersion String @default("v1")
-
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -92,7 +91,6 @@ model Match {
   // INDEXES
   @@index([userId])
   @@index([status])
-  @@index([level, gender, location])
 }
 
 model Transaction {
